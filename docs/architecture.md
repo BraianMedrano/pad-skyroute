@@ -38,3 +38,8 @@ Expected consumer: the food delivery group, requesting drone deliveries for thei
 - **Ports and adapters:** every external service sits behind an interface with a fake implementation, so the system never blocks on another group.
 - **Contract first:** the OpenAPI spec is published early so other groups can integrate in parallel.
 - **Resilience:** external calls use timeouts and retries; failures are visible and handled.
+
+## Open decisions
+
+- **Team split and way of working:** how the four members divide the work and coordinate. To be decided in a team meeting.
+- **Map library:** `react-leaflet` + `leaflet` or `maplibre-gl`, chosen once by the team.
