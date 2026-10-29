@@ -38,13 +38,14 @@ These rules are MANDATORY for every agent working in this repository (Claude Cod
 - Backend projects: `SkyRoute.Domain`, `SkyRoute.Application`, `SkyRoute.Infrastructure`, `SkyRoute.Api`, plus `SkyRoute.Domain.Tests` and `SkyRoute.Application.Tests`.
 - Dependencies point inward: Domain references nothing, Application references Domain, Infrastructure and Api reference inward only.
 - Allowed interfaces: the external-service ports `IIdentityService`, `IWeatherService`, `IPaymentGateway`, `IWebhookNotifier` (each with a real adapter and a Fake), and one repository per aggregate (missions, drones). Any other interface needs the human's OK.
+- Persistence: SQLite through EF Core. The schema is created with `EnsureCreated()` plus a drone seed; no migrations. Only mission and drone state is persisted; live telemetry stays in memory and is never written per tick.
 - External HTTP calls use `AddStandardResilienceHandler()` from `Microsoft.Extensions.Http.Resilience` for timeout and retry. Nothing more.
 
 ## Dependencies
 
 Anything not on this list needs the human's OK before it is added.
 
-- Backend: ASP.NET Core (including SignalR and OpenAPI), `Microsoft.Extensions.Http.Resilience`, `Scalar.AspNetCore`, xUnit with `Microsoft.NET.Test.Sdk`. Persistence is not decided yet: ask.
+- Backend: ASP.NET Core (including SignalR and OpenAPI), `Microsoft.Extensions.Http.Resilience`, `Scalar.AspNetCore`, xUnit with `Microsoft.NET.Test.Sdk`, `Microsoft.EntityFrameworkCore.Sqlite`.
 - Frontend: `next`, `react`, `react-dom`, `typescript`, `tailwindcss`, `@microsoft/signalr`, `openapi-typescript`, and one map library (`react-leaflet` + `leaflet` or `maplibre-gl`, chosen once by the team).
 
 ## Tests

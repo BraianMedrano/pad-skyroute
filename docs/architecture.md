@@ -30,6 +30,7 @@ Expected consumer: the food delivery group, requesting drone deliveries for thei
 ## Stack
 
 - **Backend (.NET):** REST API, simulator as a `BackgroundService`, SignalR for telemetry.
+- **Persistence:** SQLite through EF Core for mission and drone state; live telemetry stays in memory.
 - **Frontend (Next.js):** interactive map (Leaflet or MapLibre with OpenStreetMap).
 
 ## Design principles
