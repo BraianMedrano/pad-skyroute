@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SkyRoute.Api/SkyRoute.Api.csproj" />
+    <Project Path="src/SkyRoute.Application/SkyRoute.Application.csproj" />
+    <Project Path="src/SkyRoute.Domain/SkyRoute.Domain.csproj" />
+    <Project Path="src/SkyRoute.Infrastructure/SkyRoute.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SkyRoute.Application.Tests/SkyRoute.Application.Tests.csproj" />
+    <Project Path="tests/SkyRoute.Domain.Tests/SkyRoute.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
