@@ -9,6 +9,7 @@ body:
         - Build only what **In scope** lists. When the acceptance criteria are met, stop.
         - Anything not listed is out of scope. If something seems missing, ask in this issue; do not add it.
         - One issue is one PR. The PR body says `Closes #<this issue>`.
+        - Another team member reviews and approves the PR before it is merged. Never merge your own PR without that approval.
         - No drive-by refactors, renames, or "improvements" in other areas.
 
   - type: dropdown

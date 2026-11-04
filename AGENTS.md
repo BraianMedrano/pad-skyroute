@@ -22,6 +22,14 @@ These rules are MANDATORY for every agent working in this repository (Claude Cod
 - If something seems missing, ask. Do not add it.
 - One task is one change: no drive-by refactors, renames, or "improvements".
 
+## Pull requests
+
+- One issue is one PR, from its own branch off `main`. The PR body says `Closes #<issue>`.
+- Another team member reviews and approves every PR before it is merged. The author never merges their own PR without that approval.
+- Prefer as reviewer the teammate whose task depends on the change (for example, the frontend owner reviews API contract changes).
+- The reviewer checks the issue: anything outside its "In scope" list or its "Allowed areas" is sent back, not merged.
+- Agents open PRs and stop there. They never approve or merge a PR.
+
 ## Forbidden unless the human explicitly asks
 
 - Authentication, JWT, roles, identity frameworks. Recipient validation through the RENAPER API is a feature, not auth.

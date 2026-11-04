@@ -39,6 +39,10 @@ docker compose up --build
 - The SQLite database lives in the `api-data` volume and survives restarts.
 - The browser calls the API directly. When other machines use the frontend, rebuild with the host's network address: `API_PUBLIC_URL=http://<host-ip>:5113 docker compose up --build`.
 
+## Workflow
+
+Every task is a GitHub issue, and every issue is one PR. Another team member reviews and approves each PR before it is merged. The full rules are in [AGENTS.md](AGENTS.md#pull-requests).
+
 ## Working with coding agents
 
 Every agent must follow [AGENTS.md](AGENTS.md).
