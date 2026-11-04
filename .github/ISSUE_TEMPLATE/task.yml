@@ -1,0 +1,128 @@
+name: Task
+description: One unit of planned work. Build exactly what it says, nothing more.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Read [AGENTS.md](https://github.com/BraianMedrano/pad-skyroute/blob/main/AGENTS.md) before starting. It wins over this issue, your agent, and your own judgment.**
+
+        - Build only what **In scope** lists. When the acceptance criteria are met, stop.
+        - Anything not listed is out of scope. If something seems missing, ask in this issue; do not add it.
+        - One issue is one PR. The PR body says `Closes #<this issue>`.
+        - No drive-by refactors, renames, or "improvements" in other areas.
+
+  - type: dropdown
+    id: owner
+    attributes:
+      label: Owner
+      description: The only person who implements this task.
+      options:
+        - Braian
+        - Facundo
+        - Lucas
+        - Agustín
+        - Everyone
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options:
+        - "0: Contracts"
+        - "1: End-to-end with fakes"
+        - "2: Other groups"
+        - "3: Demo"
+    validations:
+      required: true
+
+  - type: input
+    id: depends-on
+    attributes:
+      label: Depends on
+      description: Issues that must be merged before this one starts, for example `#3, #5`. Write `None` if it can start now.
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One sentence with the observable outcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: in-scope
+    attributes:
+      label: In scope
+      description: The exact list of things to build. This list is the whole task.
+      placeholder: |
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: Things someone might be tempted to add here but must not, and where they belong instead.
+      placeholder: |
+        - ... (belongs to #N)
+    validations:
+      required: true
+
+  - type: textarea
+    id: allowed-areas
+    attributes:
+      label: Allowed areas
+      description: Folders or files this task may touch. Touching anything else needs a comment in this issue first.
+      placeholder: |
+        - backend/src/SkyRoute.Domain/
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Observable checks that prove the task is done. When they all pass, stop.
+      placeholder: |
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: tests
+    attributes:
+      label: Tests
+      description: One test per business rule, only in Domain or Application, using the Fakes. Write `None` for any other layer.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contract-impact
+    attributes:
+      label: Public API contract impact
+      description: The food delivery group consumes our OpenAPI contract.
+      options:
+        - None
+        - Adds endpoints or fields only
+        - Renames, removes, or changes existing endpoints or fields (needs the team's OK in this issue first)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: guardrails
+    attributes:
+      label: Guardrails
+      options:
+        - label: This task builds nothing from the "Forbidden unless the human explicitly asks" list in AGENTS.md.
+          required: true
+        - label: This task adds no project, layer, or interface beyond the "Architecture limits" in AGENTS.md.
+          required: true
+        - label: This task adds no dependency outside the "Dependencies" allowlist in AGENTS.md.
+          required: true
+        - label: Anything not listed in "In scope" will be asked in this issue instead of being built.
+          required: true
