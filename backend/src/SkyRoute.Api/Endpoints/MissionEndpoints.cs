@@ -7,11 +7,6 @@ namespace SkyRoute.Api.Endpoints;
 
 public static class MissionEndpoints
 {
-    // Stub data until the pay and assign use cases land (#11). The contract is what matters here.
-    // Plaza Independencia and Parque 9 de Julio, San Miguel de Tucumán.
-    private static readonly Coordinates SampleOrigin = new(-26.8305, -65.2039);
-    private static readonly Coordinates SampleDestination = new(-26.8317, -65.1912);
-
     public static IEndpointRouteBuilder MapMissionEndpoints(this IEndpointRouteBuilder app)
     {
         var missions = app.MapGroup("/missions").WithTags("Missions");
@@ -32,8 +27,7 @@ public static class MissionEndpoints
             .WithSummary("Get one mission.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        missions.MapPost("/{id:guid}/payment", (Guid id) =>
-                TypedResults.Ok(SampleMission(id, MissionStatus.Assigned, DroneEndpoints.SampleDroneId)))
+        missions.MapPost("/{id:guid}/payment", PayMissionAsync)
             .WithName("PayMission")
             .WithSummary("Pay a validated mission.")
             .WithDescription("On approval the mission becomes Paid, and Assigned as soon as a drone is available. A rejected payment, or a mission that is not Validated, returns 422 with the reason in `detail`.")
@@ -78,6 +72,18 @@ public static class MissionEndpoints
             : TypedResults.Ok(ToResponse(mission));
     }
 
+    private static async Task<Results<Ok<MissionResponse>, ProblemHttpResult>> PayMissionAsync(
+        Guid id, PayMission payMission, CancellationToken cancellationToken)
+    {
+        var result = await payMission.ExecuteAsync(id, cancellationToken);
+        return result.Outcome switch
+        {
+            PayMissionOutcome.Paid => TypedResults.Ok(ToResponse(result.Mission!)),
+            PayMissionOutcome.NotFound => TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Mission {id} not found."),
+            _ => Unprocessable(result.RejectionReason ?? "Payment rejected."),
+        };
+    }
+
     private static ProblemHttpResult Unprocessable(string reason) =>
         TypedResults.Problem(statusCode: StatusCodes.Status422UnprocessableEntity, detail: reason);
 
@@ -93,7 +99,4 @@ public static class MissionEndpoints
     private static Domain.Coordinates ToDomain(Coordinates coordinates) => new(coordinates.Lat, coordinates.Lon);
 
     private static Coordinates ToContract(Domain.Coordinates coordinates) => new(coordinates.Lat, coordinates.Lon);
-
-    private static MissionResponse SampleMission(Guid id, MissionStatus status, Guid? assignedDroneId) =>
-        new(id, status, SampleOrigin, SampleDestination, PackageWeightKg: 1.5, assignedDroneId);
 }

@@ -11,6 +11,7 @@ builder.Services.AddOpenApi();
 SkyRoute.Infrastructure.External.IntegrationServiceCollectionExtensions.AddIntegrations(builder.Services, builder.Configuration);
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddScoped<SkyRoute.Application.Missions.RequestMission>();
+builder.Services.AddScoped<SkyRoute.Application.Missions.PayMission>();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
