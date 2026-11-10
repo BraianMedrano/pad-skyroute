@@ -10,4 +10,6 @@ public record DroneResponse(
     Guid Id,
     string Name,
     DroneStatus Status,
-    Coordinates Position);
+    Coordinates Position,
+    // The drone's base: where it starts and returns to (docs/architecture.md, "Flight rules").
+    Coordinates HomePosition);
