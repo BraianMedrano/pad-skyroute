@@ -17,7 +17,9 @@ public record RequestMissionRequest(
     Coordinates Origin,
     Coordinates Destination,
     double PackageWeightKg,
-    string RecipientDni);
+    string RecipientDni,
+    // Optional: we POST the mission to this URL when it ends as Completed or Failed (#15).
+    Uri? CallbackUrl = null);
 
 public record MissionResponse(
     Guid Id,
@@ -25,4 +27,6 @@ public record MissionResponse(
     Coordinates Origin,
     Coordinates Destination,
     double PackageWeightKg,
-    Guid? AssignedDroneId);
+    Guid? AssignedDroneId,
+    // Set only when Status is Failed.
+    string? FailureReason = null);

@@ -11,8 +11,8 @@ public static class DroneEndpoints
     {
         app.MapGet("/drones", () => TypedResults.Ok(new[]
             {
-                new DroneResponse(SampleDroneId, "Falcon-1", DroneStatus.Busy, new Coordinates(-34.5950, -58.3900)),
-                new DroneResponse(Guid.Parse("c9f0f895-fb98-4b91-8f2a-7e6d5c4b3a21"), "Falcon-2", DroneStatus.Available, new Coordinates(-34.6037, -58.3816)),
+                new DroneResponse(SampleDroneId, "Falcon-1", DroneStatus.Busy, new Coordinates(-26.8311, -65.1975)),
+                new DroneResponse(Guid.Parse("c9f0f895-fb98-4b91-8f2a-7e6d5c4b3a21"), "Falcon-2", DroneStatus.Available, new Coordinates(-26.8305, -65.2039)),
             }))
             .WithTags("Drones")
             .WithName("ListDrones")

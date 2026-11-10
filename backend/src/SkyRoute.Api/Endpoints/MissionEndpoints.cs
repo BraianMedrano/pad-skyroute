@@ -5,8 +5,9 @@ namespace SkyRoute.Api.Endpoints;
 public static class MissionEndpoints
 {
     // Stub data until the use cases land (#10, #11). The contract is what matters here.
-    private static readonly Coordinates SampleOrigin = new(-34.6037, -58.3816);
-    private static readonly Coordinates SampleDestination = new(-34.5875, -58.3974);
+    // Plaza Independencia and Parque 9 de Julio, San Miguel de Tucumán.
+    private static readonly Coordinates SampleOrigin = new(-26.8305, -65.2039);
+    private static readonly Coordinates SampleDestination = new(-26.8317, -65.1912);
 
     public static IEndpointRouteBuilder MapMissionEndpoints(this IEndpointRouteBuilder app)
     {
@@ -25,7 +26,7 @@ public static class MissionEndpoints
             })
             .WithName("RequestMission")
             .WithSummary("Request a package delivery.")
-            .WithDescription("Validates the recipient and the weather. A rejected request returns 422 with the reason and is not saved.")
+            .WithDescription("Validates the recipient and the weather. A rejected request returns 422 with the reason in `detail` and is not saved. If `callbackUrl` is set, the mission is POSTed to it when it ends as Completed or Failed.")
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         missions.MapGet("/", () => TypedResults.Ok(new[]
@@ -46,7 +47,7 @@ public static class MissionEndpoints
                 TypedResults.Ok(SampleMission(id, MissionStatus.Assigned, DroneEndpoints.SampleDroneId)))
             .WithName("PayMission")
             .WithSummary("Pay a validated mission.")
-            .WithDescription("On approval the mission becomes Paid, and Assigned as soon as a drone is available. A rejected payment, or a mission that is not Validated, returns 422 with the reason.")
+            .WithDescription("On approval the mission becomes Paid, and Assigned as soon as a drone is available. A rejected payment, or a mission that is not Validated, returns 422 with the reason in `detail`.")
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
