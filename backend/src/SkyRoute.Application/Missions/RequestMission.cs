@@ -38,8 +38,13 @@ public sealed class RequestMission(
         }
 
         // A base is the home position of its drones.
-        var bases = (await drones.ListAsync(cancellationToken)).Select(d => d.HomePosition).Distinct();
-        if (!bases.Any(home => FlightRules.CanFly(home, route)))
+        var trips = (await drones.ListAsync(cancellationToken))
+            .Select(d => d.HomePosition)
+            .Distinct()
+            .Where(home => FlightRules.CanFly(home, route))
+            .Select(home => FlightRules.TripKilometers(home, route))
+            .ToList();
+        if (trips.Count == 0)
         {
             return RequestMissionResult.Rejected(
                 $"Out of range: no base can fly base → origin → destination → base within {FlightRules.MaxFlightKm} km.");
@@ -60,7 +65,8 @@ public sealed class RequestMission(
             }
         }
 
-        mission.Validate();
+        // Priced by the shortest full trip among the bases that can fly it.
+        mission.Validate(FlightRules.Price(trips.Min()));
         await missions.AddAsync(mission, cancellationToken);
         return RequestMissionResult.Accepted(mission);
     }
