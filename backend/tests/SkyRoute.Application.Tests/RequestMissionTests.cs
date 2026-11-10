@@ -52,6 +52,29 @@ public class RequestMissionTests
     }
 
     [Fact]
+    public async Task A_valid_request_is_priced_by_the_shortest_trip_among_the_bases_that_can_fly_it()
+    {
+        // A second base about 2 km west is also within range, but the Centro trip is shorter.
+        var westBase = new Coordinates(-26.8305, -65.2240);
+        var useCase = new RequestMission(
+            _missions,
+            new InMemoryDroneRepository(
+                new Drone(Guid.NewGuid(), "Falcon-2", westBase),
+                new Drone(Guid.NewGuid(), "Falcon-1", Centro)),
+            new FakeIdentityService(),
+            new FakeWeatherService());
+
+        var result = await useCase.ExecuteAsync(Command());
+
+        var route = new Route(Centro, Parque9DeJulio);
+        Assert.True(FlightRules.CanFly(westBase, route));
+        var expected = FlightRules.Price(FlightRules.TripKilometers(Centro, route));
+        Assert.NotNull(result.Mission);
+        Assert.Equal(expected, result.Mission.Price);
+        Assert.Equal(expected, (await _missions.GetAsync(result.Mission.Id))!.Price);
+    }
+
+    [Fact]
     public async Task A_rejected_recipient_returns_the_reason_and_saves_nothing()
     {
         var result = await UseCase().ExecuteAsync(Command(dni: RejectedDni));

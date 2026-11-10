@@ -96,6 +96,16 @@ public class MissionStateMachineTests
     }
 
     [Fact]
+    public void Validate_records_the_price()
+    {
+        var mission = NewMission();
+
+        mission.Validate(4500m);
+
+        Assert.Equal(4500m, mission.Price);
+    }
+
+    [Fact]
     public void Fail_records_the_reason()
     {
         var mission = MissionIn(MissionStatus.InProgress);
@@ -104,6 +114,8 @@ public class MissionStateMachineTests
 
         Assert.Equal("Battery depleted", mission.FailureReason);
     }
+
+    private const decimal Price = 3500m;
 
     private static Mission NewMission() =>
         Mission.RequestDelivery(
@@ -134,7 +146,7 @@ public class MissionStateMachineTests
     {
         switch (action)
         {
-            case MissionAction.Validate: mission.Validate(); break;
+            case MissionAction.Validate: mission.Validate(Price); break;
             case MissionAction.MarkPaid: mission.MarkPaid(); break;
             case MissionAction.Assign: mission.Assign(DroneId); break;
             case MissionAction.Start: mission.Start(); break;

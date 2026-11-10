@@ -44,6 +44,9 @@ public sealed class Mission
     public Route Route { get; }
     public double PackageWeightKg { get; }
     public string RecipientDni { get; }
+    public decimal Price { get; private set; }
+    // The checkout link of the latest payment attempt; the mission stays Validated until it is paid.
+    public string? PaymentLinkId { get; private set; }
     // Where the consumer wants to be notified when the mission ends (#15).
     public Uri? CallbackUrl { get; }
     // Orders the Paid missions waiting for a drone: the oldest goes first (#12).
@@ -60,7 +63,13 @@ public sealed class Mission
         DateTimeOffset? requestedAt = null) =>
         new(Guid.NewGuid(), MissionType.Delivery, route, packageWeightKg, recipientDni, callbackUrl, requestedAt ?? DateTimeOffset.UtcNow);
 
-    public void Validate() => MoveTo(MissionStatus.Requested, MissionStatus.Validated);
+    public void Validate(decimal price)
+    {
+        MoveTo(MissionStatus.Requested, MissionStatus.Validated);
+        Price = price;
+    }
+
+    public void AttachPaymentLink(string paymentLinkId) => PaymentLinkId = paymentLinkId;
 
     public void MarkPaid() => MoveTo(MissionStatus.Validated, MissionStatus.Paid);
 

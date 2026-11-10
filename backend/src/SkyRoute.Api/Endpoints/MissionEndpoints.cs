@@ -14,7 +14,7 @@ public static class MissionEndpoints
         missions.MapPost("/", RequestMissionAsync)
             .WithName("RequestMission")
             .WithSummary("Request a package delivery.")
-            .WithDescription("Validates the package weight (at most 2.5 kg), the flight range (at most 25 km from a drone base and back), the recipient, and the weather. A rejected request returns 422 with the reason in `detail` and is not saved. If `callbackUrl` is set, the mission is POSTed to it when it ends as Completed or Failed.")
+            .WithDescription("Validates the package weight (at most 2.5 kg), the flight range (at most 25 km from a drone base and back), the recipient, and the weather, and sets the mission price. A rejected request returns 422 with the reason in `detail` and is not saved. If `callbackUrl` is set, the same JSON as `GET /missions/{id}` is POSTed to it when the mission ends as Completed or Failed.")
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         missions.MapGet("/", async (IMissionRepository repository, CancellationToken cancellationToken) =>
@@ -29,8 +29,8 @@ public static class MissionEndpoints
 
         missions.MapPost("/{id:guid}/payment", PayMissionAsync)
             .WithName("PayMission")
-            .WithSummary("Pay a validated mission.")
-            .WithDescription("On approval the mission becomes Paid, and Assigned as soon as a drone is available. A rejected payment, or a mission that is not Validated, returns 422 with the reason in `detail`.")
+            .WithSummary("Start the payment of a validated mission.")
+            .WithDescription("Creates a Padi checkout link for the mission price and returns 202 with `checkoutUrl`. The mission stays Validated until the payment is confirmed, then becomes Paid, and Assigned as soon as a drone is available; follow it with `GET /missions/{id}`. If the link expires unpaid, call this endpoint again for a new one. A mission that is not Validated returns 422 with the reason in `detail`.")
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
@@ -73,13 +73,15 @@ public static class MissionEndpoints
             : TypedResults.Ok(ToResponse(mission));
     }
 
-    private static async Task<Results<Ok<MissionResponse>, ProblemHttpResult>> PayMissionAsync(
+    private static async Task<Results<Accepted<PaymentResponse>, ProblemHttpResult>> PayMissionAsync(
         Guid id, PayMission payMission, CancellationToken cancellationToken)
     {
         var result = await payMission.ExecuteAsync(id, cancellationToken);
         return result.Outcome switch
         {
-            PayMissionOutcome.Paid => TypedResults.Ok(ToResponse(result.Mission!)),
+            PayMissionOutcome.Started => TypedResults.Accepted(
+                $"/missions/{id}",
+                new PaymentResponse(id, result.PaymentLink!.Amount, result.PaymentLink.CheckoutUrl, result.PaymentLink.ExpiresAt)),
             PayMissionOutcome.NotFound => TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Mission {id} not found."),
             _ => Unprocessable(result.RejectionReason ?? "Payment rejected."),
         };
@@ -94,6 +96,7 @@ public static class MissionEndpoints
         ToContract(mission.Route.Origin),
         ToContract(mission.Route.Destination),
         mission.PackageWeightKg,
+        mission.Price,
         mission.AssignedDroneId,
         mission.FailureReason);
 

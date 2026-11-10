@@ -57,4 +57,12 @@ public class FlightRulesTests
 
         Assert.False(FlightRules.CanFly(Centro, route));
     }
+
+    [Theory]
+    [InlineData(0, 2000)]
+    [InlineData(10, 4500)]
+    [InlineData(25, 8250)]
+    [InlineData(1.002, 2251)] // 2250.5 rounds to whole pesos, away from zero.
+    public void Price_is_2000_ARS_plus_250_ARS_per_trip_km_in_whole_pesos(double tripKm, int expectedPrice) =>
+        Assert.Equal(expectedPrice, FlightRules.Price(tripKm));
 }

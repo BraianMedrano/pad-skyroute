@@ -32,7 +32,7 @@ public class MissionLifecycleTests
     {
         var mission = Mission.RequestDelivery(
             new Route(origin ?? Centro, Parque9DeJulio), 1.5, "30111222", requestedAt: requestedAt ?? Now);
-        mission.Validate();
+        mission.Validate(2634m);
         if (status >= MissionStatus.Paid) mission.MarkPaid();
         if (status >= MissionStatus.Assigned)
         {
