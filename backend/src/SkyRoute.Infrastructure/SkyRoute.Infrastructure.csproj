@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SkyRoute.Application\SkyRoute.Application.csproj" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.0.0" />
   </ItemGroup>
 
   <PropertyGroup>
