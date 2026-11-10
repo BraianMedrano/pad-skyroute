@@ -9,7 +9,8 @@ public sealed record RequestMissionCommand(
     Coordinates Origin,
     Coordinates Destination,
     double PackageWeightKg,
-    string RecipientDni);
+    string RecipientDni,
+    Uri? CallbackUrl = null);
 
 // Either the validated mission, or the reason it was rejected.
 public sealed record RequestMissionResult(Mission? Mission, string? RejectionReason)
@@ -29,7 +30,7 @@ public sealed class RequestMission(
     public async Task<RequestMissionResult> ExecuteAsync(RequestMissionCommand command, CancellationToken cancellationToken = default)
     {
         var route = new Route(command.Origin, command.Destination);
-        var mission = Mission.RequestDelivery(route, command.PackageWeightKg, command.RecipientDni);
+        var mission = Mission.RequestDelivery(route, command.PackageWeightKg, command.RecipientDni, command.CallbackUrl);
 
         if (!FlightRules.IsPackageWeightAllowed(mission.PackageWeightKg))
         {

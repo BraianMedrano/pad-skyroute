@@ -42,6 +42,16 @@ public class RequestMissionTests
     }
 
     [Fact]
+    public async Task The_callback_url_is_saved_with_the_mission()
+    {
+        var callbackUrl = new Uri("https://delivery.example/webhooks/skyroute");
+
+        var result = await UseCase().ExecuteAsync(Command() with { CallbackUrl = callbackUrl });
+
+        Assert.Equal(callbackUrl, (await _missions.GetAsync(result.Mission!.Id))!.CallbackUrl);
+    }
+
+    [Fact]
     public async Task A_rejected_recipient_returns_the_reason_and_saves_nothing()
     {
         var result = await UseCase().ExecuteAsync(Command(dni: RejectedDni));

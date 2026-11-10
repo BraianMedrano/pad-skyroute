@@ -51,7 +51,8 @@ public static class MissionEndpoints
                 ToDomain(request.Origin),
                 ToDomain(request.Destination),
                 request.PackageWeightKg,
-                request.RecipientDni),
+                request.RecipientDni,
+                request.CallbackUrl),
             cancellationToken);
 
         if (result.Mission is null)

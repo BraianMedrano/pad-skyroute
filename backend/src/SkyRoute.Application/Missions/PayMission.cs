@@ -1,7 +1,5 @@
 using SkyRoute.Application.Drones;
 using SkyRoute.Application.External;
-using SkyRoute.Domain;
-using SkyRoute.Domain.Drones;
 using SkyRoute.Domain.Missions;
 
 namespace SkyRoute.Application.Missions;
@@ -42,7 +40,7 @@ public sealed class PayMission(IMissionRepository missions, IDroneRepository dro
 
         mission.MarkPaid();
 
-        var drone = NearestAvailableDroneInRange(await drones.ListAsync(cancellationToken), mission.Route);
+        var drone = DroneAssignment.NearestAvailableDroneInRange(await drones.ListAsync(cancellationToken), mission.Route);
         if (drone is not null)
         {
             drone.MarkBusy();
@@ -53,11 +51,4 @@ public sealed class PayMission(IMissionRepository missions, IDroneRepository dro
         await missions.UpdateAsync(mission, cancellationToken);
         return new PayMissionResult(PayMissionOutcome.Paid, mission);
     }
-
-    // Flight rules (#29): the available drone nearest to the origin whose full trip fits within range.
-    private static Drone? NearestAvailableDroneInRange(IEnumerable<Drone> fleet, Route route) =>
-        fleet
-            .Where(d => d.Status == DroneStatus.Available && FlightRules.CanFly(d.HomePosition, route))
-            .OrderBy(d => GeoDistance.Kilometers(d.HomePosition, route.Origin))
-            .FirstOrDefault();
 }
