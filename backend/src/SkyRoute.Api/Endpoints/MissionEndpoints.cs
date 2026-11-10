@@ -72,13 +72,15 @@ public static class MissionEndpoints
             : TypedResults.Ok(ToResponse(mission));
     }
 
-    private static async Task<Results<Ok<MissionResponse>, ProblemHttpResult>> PayMissionAsync(
+    private static async Task<Results<Accepted<PaymentResponse>, ProblemHttpResult>> PayMissionAsync(
         Guid id, PayMission payMission, CancellationToken cancellationToken)
     {
         var result = await payMission.ExecuteAsync(id, cancellationToken);
         return result.Outcome switch
         {
-            PayMissionOutcome.Paid => TypedResults.Ok(ToResponse(result.Mission!)),
+            PayMissionOutcome.Started => TypedResults.Accepted(
+                $"/missions/{id}",
+                new PaymentResponse(id, result.PaymentLink!.Amount, result.PaymentLink.CheckoutUrl, result.PaymentLink.ExpiresAt)),
             PayMissionOutcome.NotFound => TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Mission {id} not found."),
             _ => Unprocessable(result.RejectionReason ?? "Payment rejected."),
         };
