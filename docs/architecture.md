@@ -23,9 +23,15 @@
 |----------|-------------------------------|------------------------------------------|
 | Identity | RENAPER group API             | Validate the package recipient           |
 | Weather  | Open-Meteo                    | Block flights in high wind or rain       |
-| Payments | Mercado Pago sandbox or fake  | Charge for deliveries                    |
+| Payments | Padi (wallet group API) or fake | Charge for deliveries                  |
 
 Expected consumer: the food delivery group, requesting drone deliveries for their orders.
+
+## Payment and notification
+
+- **Price:** ARS 2000 base plus ARS 250 per km of the full trip (base → origin → destination → base), rounded to whole pesos. The longest allowed trip (25 km) costs ARS 8250. Returned as `price` on every mission.
+- **Payment is asynchronous (Padi):** `POST /missions/{id}/payment` creates a Padi checkout link for the price and returns `202` with `checkoutUrl` and `expiresAt`. The mission stays `Validated` until the backend confirms the payment with Padi (Padi has no webhooks, so we poll it); then it becomes `Paid`, and `Assigned` when a drone is available. If the link expires unpaid, calling the endpoint again creates a new one. Clients follow progress with `GET /missions/{id}`.
+- **Webhook:** when a mission ends as `Completed` or `Failed`, the same JSON as `GET /missions/{id}` is POSTed to its `callbackUrl`, if one was given.
 
 ## Stack
 

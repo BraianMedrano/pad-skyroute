@@ -27,6 +27,15 @@ public record MissionResponse(
     Coordinates Origin,
     Coordinates Destination,
     double PackageWeightKg,
+    // ARS 2000 base plus ARS 250 per km of the full trip (base → origin → destination → base), rounded to whole pesos.
+    decimal Price,
     Guid? AssignedDroneId,
     // Set only when Status is Failed.
     string? FailureReason = null);
+
+// Padi checkout link for a Validated mission. The mission becomes Paid once the payment is confirmed.
+public record PaymentResponse(
+    Guid MissionId,
+    decimal Amount,
+    Uri CheckoutUrl,
+    DateTimeOffset ExpiresAt);
