@@ -74,4 +74,4 @@ Telemetry lives in memory and is never written to the database. Until the real s
 ## Open decisions
 
 - **Team split and way of working:** how the four members divide the work and coordinate. To be decided in a team meeting.
-- **Map library:** `react-leaflet` + `leaflet` or `maplibre-gl`, chosen once by the team.
+- **Map library:** decided: `maplibre-gl` with OpenStreetMap raster tiles (single dependency, TypeScript types included).
