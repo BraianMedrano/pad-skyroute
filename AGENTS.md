@@ -22,6 +22,20 @@ These rules are MANDATORY for every agent working in this repository (Claude Cod
 - If something seems missing, ask. Do not add it.
 - One task is one change: no drive-by refactors, renames, or "improvements".
 
+## Pull requests
+
+- One issue is one PR, from its own branch off `main`. The PR body says `Closes #<issue>`.
+- Another team member reviews and approves every PR before it is merged. The author never merges their own PR without that approval.
+- Prefer as reviewer the teammate whose task depends on the change (for example, the frontend owner reviews API contract changes).
+- The reviewer checks the issue: anything outside its "In scope" list or its "Allowed areas" is sent back, not merged.
+- Agents open PRs. An agent approves or merges a PR only when the human explicitly asks for it in that session, and only if every condition below holds. If any fails, the agent stops and reports which one.
+  - The human is not the PR author (the approval is the other member's), and the PR is mergeable with no conflicts.
+  - `dotnet build` and `dotnet test backend/SkyRoute.slnx` pass.
+  - The diff stays inside the issue's "In scope" and "Allowed areas", or each deviation is recorded in the issue.
+  - Every acceptance criterion of the linked issue is met or explicitly recorded as pending by its owner.
+  - No unresolved review comment remains.
+  - Merge is a regular merge commit, never force-pushed or admin-bypassed.
+
 ## Forbidden unless the human explicitly asks
 
 - Authentication, JWT, roles, identity frameworks. Recipient validation through the RENAPER API is a feature, not auth.

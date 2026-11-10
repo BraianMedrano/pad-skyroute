@@ -7,6 +7,7 @@ const string FrontendCorsPolicy = "Frontend";
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+SkyRoute.Infrastructure.External.IntegrationServiceCollectionExtensions.AddIntegrations(builder.Services, builder.Configuration);
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
