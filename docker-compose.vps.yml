@@ -1,0 +1,23 @@
+# VPS override (see docs/deploy-vps.md): no published ports, fixed names for nginx, shared proxy network.
+services:
+  api:
+    container_name: skyroute_api
+    ports: !reset []
+    environment:
+      # Trust X-Forwarded-Proto/For from the shared nginx, so the API knows requests arrive over https.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    restart: unless-stopped
+    networks: [default, castel_network]
+
+  web:
+    container_name: skyroute_web
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: https://skyroute.casteltech.ar
+    ports: !reset []
+    restart: unless-stopped
+    networks: [default, castel_network]
+
+networks:
+  castel_network:
+    external: true
