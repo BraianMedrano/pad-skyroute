@@ -1,7 +1,11 @@
+using SkyRoute.Api.Hubs;
+using SkyRoute.Infrastructure.Simulation;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 SkyRoute.Infrastructure.External.IntegrationServiceCollectionExtensions.AddIntegrations(builder.Services, builder.Configuration);
+builder.Services.AddSimulation<TelemetryHub>();
 
 var app = builder.Build();
 
@@ -9,5 +13,7 @@ var app = builder.Build();
 app.MapOpenApi();
 
 app.UseHttpsRedirection();
+
+app.MapHub<TelemetryHub>("/hubs/telemetry");
 
 app.Run();
