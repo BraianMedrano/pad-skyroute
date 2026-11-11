@@ -22,11 +22,18 @@ public sealed class PadiPaymentGateway(HttpClient httpClient, IConfiguration con
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(mission);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        using var response = await httpClient.PostAsJsonAsync(
-            "api/v1/integrations/payment-links",
+        using var jsonContent = JsonContent.Create(
             new CreatePaymentLinkRequest(amount, $"Mission {mission.Id}", Currency, LinkType, TtlMinutes),
-            JsonOptions,
+            options: JsonOptions);
+        var body = await jsonContent.ReadAsByteArrayAsync(cancellationToken);
+        using var content = new ByteArrayContent(body);
+        content.Headers.ContentLength = body.LongLength;
+        content.Headers.ContentType = jsonContent.Headers.ContentType;
+        using var response = await httpClient.PostAsync(
+            "api/v1/integrations/payment-links",
+            content,
             cancellationToken);
         response.EnsureSuccessStatusCode();
         if (response.StatusCode != System.Net.HttpStatusCode.Created)
