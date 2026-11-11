@@ -10,20 +10,25 @@ public static class MissionEndpoints
     private static readonly Coordinates SampleDestination = new(-26.8317, -65.1912);
     private const decimal SamplePrice = 3500m;
 
+    // Base URL of the web app that serves the embeddable tracking page ("PublicWebUrl", env var PublicWebUrl).
+    private const string DefaultPublicWebUrl = "http://localhost:3000";
+
     public static IEndpointRouteBuilder MapMissionEndpoints(this IEndpointRouteBuilder app)
     {
         var missions = app.MapGroup("/missions").WithTags("Missions");
 
-        missions.MapPost("/", (RequestMissionRequest request) =>
+        missions.MapPost("/", (RequestMissionRequest request, IConfiguration configuration) =>
             {
+                var id = Guid.NewGuid();
                 var mission = new MissionResponse(
-                    Guid.NewGuid(),
+                    id,
                     MissionStatus.Validated,
                     request.Origin,
                     request.Destination,
                     request.PackageWeightKg,
                     SamplePrice,
-                    AssignedDroneId: null);
+                    AssignedDroneId: null,
+                    TrackingUrl(configuration, id));
                 return TypedResults.Created($"/api/missions/{mission.Id}", mission);
             })
             .WithName("RequestMission")
@@ -31,18 +36,19 @@ public static class MissionEndpoints
             .WithDescription("Validates the recipient and the weather. A rejected request returns 422 with the reason in `detail` and is not saved. If `callbackUrl` is set, the same JSON as `GET /api/missions/{id}` is POSTed to it when the mission ends as Completed or Failed.")
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
-        missions.MapGet("/", () => TypedResults.Ok(new[]
+        missions.MapGet("/", (IConfiguration configuration) => TypedResults.Ok(new[]
             {
-                SampleMission(Guid.NewGuid(), MissionStatus.Validated, assignedDroneId: null),
-                SampleMission(Guid.NewGuid(), MissionStatus.InProgress, DroneEndpoints.SampleDroneId),
+                SampleMission(configuration, Guid.NewGuid(), MissionStatus.Validated, assignedDroneId: null),
+                SampleMission(configuration, Guid.NewGuid(), MissionStatus.InProgress, DroneEndpoints.SampleDroneId),
             }))
             .WithName("ListMissions")
             .WithSummary("List all missions with their status.");
 
-        missions.MapGet("/{id:guid}", (Guid id) =>
-                TypedResults.Ok(SampleMission(id, MissionStatus.InProgress, DroneEndpoints.SampleDroneId)))
+        missions.MapGet("/{id:guid}", (Guid id, IConfiguration configuration) =>
+                TypedResults.Ok(SampleMission(configuration, id, MissionStatus.InProgress, DroneEndpoints.SampleDroneId)))
             .WithName("GetMission")
             .WithSummary("Get one mission.")
+            .WithDescription("`trackingUrl` is a public page with the live map of the mission, meant to be embedded in an iframe.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         missions.MapPost("/{id:guid}/payment", (Guid id) =>
@@ -60,6 +66,9 @@ public static class MissionEndpoints
         return app;
     }
 
-    private static MissionResponse SampleMission(Guid id, MissionStatus status, Guid? assignedDroneId) =>
-        new(id, status, SampleOrigin, SampleDestination, PackageWeightKg: 1.5, SamplePrice, assignedDroneId);
+    private static MissionResponse SampleMission(IConfiguration configuration, Guid id, MissionStatus status, Guid? assignedDroneId) =>
+        new(id, status, SampleOrigin, SampleDestination, PackageWeightKg: 1.5, SamplePrice, assignedDroneId, TrackingUrl(configuration, id));
+
+    private static Uri TrackingUrl(IConfiguration configuration, Guid missionId) =>
+        new($"{(configuration["PublicWebUrl"] ?? DefaultPublicWebUrl).TrimEnd('/')}/embed/missions/{missionId}");
 }
