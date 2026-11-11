@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 using SkyRoute.Api.Endpoints;
 using SkyRoute.Api.Hubs;
+using SkyRoute.Infrastructure.Persistence;
 using SkyRoute.Infrastructure.Simulation;
 
 const string FrontendCorsPolicy = "Frontend";
@@ -29,8 +30,11 @@ builder.Services.AddCors(options =>
         // SignalR (#6) needs credentials.
         .AllowCredentials()));
 builder.Services.AddSimulation<TelemetryHub>();
+builder.Services.AddPersistence(builder.Configuration);
 
 var app = builder.Build();
+
+await app.Services.InitializeDatabaseAsync();
 
 // Contract first: the OpenAPI document and its reference page are always published so other groups can integrate.
 app.MapOpenApi(OpenApiRoute);
