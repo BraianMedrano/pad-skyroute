@@ -15,14 +15,14 @@ https://skyroute.casteltech.ar/api/   -> skyroute_api:8080  (ASP.NET Core, Signa
 |---|---|
 | One host, `/api` passed through unchanged | **Chosen.** One DNS record, one vhost, existing `*.casteltech.ar` certificate, browser stays same-origin so no CORS. |
 | Two hosts (`skyroute` + `skyroute-api`) with CORS | Works, but adds CORS in production and a second record and vhost for no gain. Note: `api.skyroute.casteltech.ar` would not work, wildcard certs cover one level only. |
-| One host, nginx strips `/api` | Rejected. The OpenAPI document would publish paths without `/api`, giving the food delivery group wrong URLs. |
+| One host, nginx strips `/api` | Rejected. The OpenAPI document would publish paths without `/api`, giving the Padi group (our API consumer) wrong URLs. |
 | Next `rewrites()` as proxy in production | Rejected. SignalR websockets through Next are fragile and add a hop. |
 
 ## Code requirements before deploying
 
-1. **Every API route lives under `/api`**, including the SignalR hub (`/api/hubs/telemetry`). This is part of the public contract consumed by the food delivery group. Done in #22.
+1. **Every API route lives under `/api`**, including the SignalR hub (`/api/hubs/telemetry`). This is part of the public contract consumed by the Padi group. Done in #22.
 2. **OpenAPI and Scalar also live under `/api`:** `/api/openapi/v1.json` and `/api/scalar`, published in every environment. Done in #22.
-3. **CORS only in Development**, allowing `http://localhost:3000`. Production needs none because web and API share an origin. Server-to-server callers (Padi, food delivery) are never subject to CORS.
+3. **CORS only in Development**, allowing `http://localhost:3000`. Production needs none because web and API share an origin. Server-to-server callers (the Padi group, both as payment provider and as API consumer) are never subject to CORS.
 4. **The API trusts the proxy's forwarded headers** (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` in `docker-compose.vps.yml`), so it sees `https` and the client IP instead of the internal hop.
 5. **The SQLite file lives on the `api-data` volume** (`Database__Path=/app/data/skyroute.db` in `docker-compose.yml`).
 6. **`PublicWebUrl` is the base of every mission's `trackingUrl`** (`https://skyroute.casteltech.ar` in `docker-compose.vps.yml`; defaults to `http://localhost:3000`). The page `/embed/missions/{id}` must allow being framed by other origins.
