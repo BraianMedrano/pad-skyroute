@@ -11,7 +11,7 @@ These rules are MANDATORY for every agent working in this repository (Claude Cod
 ## Context
 
 - Academic demo for PAD (Programación de Aplicaciones Distribuidas). It never goes to production.
-- No real users, no real money (Mercado Pago sandbox or a fake), no sensitive data.
+- No real users, no real money (Padi, the wallet group's demo API, or a fake), no sensitive data.
 - The working system is presented on 2026-11-11 and 2026-11-18 (dates unconfirmed). Time is the scarcest resource.
 - Scope and architecture live in [docs/architecture.md](docs/architecture.md). Do not expand them.
 
