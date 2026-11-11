@@ -14,8 +14,10 @@
 
 - Request and schedule package deliveries.
 - Query drone availability and status.
-- Track missions in real time.
+- Track missions in real time: every mission carries a `trackingUrl`, a public page with its live map meant to be embedded in an iframe (`/embed/missions/{id}` on the web app).
 - Webhook notification when a mission completes or fails.
+
+Every route lives under `/api`, including the SignalR hub. The OpenAPI document is at `/api/openapi/v1.json` and its reference page at `/api/scalar`. In the demo the base URL is `https://skyroute.casteltech.ar` (see [deploy-vps.md](deploy-vps.md)). Contract changes are additive only: new endpoints or fields may appear, existing ones are never renamed or removed, and `status` values never change.
 
 ## What we consume
 
@@ -23,9 +25,15 @@
 |----------|-------------------------------|------------------------------------------|
 | Identity | RENAPER group API             | Validate the package recipient           |
 | Weather  | Open-Meteo                    | Block flights in high wind or rain       |
-| Payments | Mercado Pago sandbox or fake  | Charge for deliveries                    |
+| Payments | Padi (wallet group API) or fake | Charge for deliveries                  |
 
 Expected consumer: the food delivery group, requesting drone deliveries for their orders.
+
+## Payment and notification
+
+- **Price:** ARS 2000 base plus ARS 250 per km of the full trip (base → origin → destination → base), rounded to whole pesos. The longest allowed trip (25 km) costs ARS 8250. Returned as `price` on every mission.
+- **Payment is asynchronous (Padi):** `POST /api/missions/{id}/payment` creates a Padi checkout link for the price and returns `202` with `checkoutUrl` and `expiresAt`. The mission stays `Validated` until the backend confirms the payment with Padi (Padi has no webhooks, so we poll it); then it becomes `Paid`, and `Assigned` when a drone is available. If the link expires unpaid, calling the endpoint again creates a new one. Clients follow progress with `GET /api/missions/{id}`.
+- **Webhook:** when a mission ends as `Completed` or `Failed`, the same JSON as `GET /api/missions/{id}` is POSTed to its `callbackUrl`, if one was given.
 
 ## Stack
 
@@ -35,7 +43,7 @@ Expected consumer: the food delivery group, requesting drone deliveries for thei
 
 ## Real-time telemetry
 
-- **Hub URL:** `/hubs/telemetry` (SignalR, server to client only).
+- **Hub URL:** `/api/hubs/telemetry` (SignalR, server to client only).
 - **Event:** `TelemetryUpdated`, broadcast to every connected client about once per second per drone.
 - **Message:** JSON, camelCase, `status` as a string (same values as the REST `DroneStatus`).
 
