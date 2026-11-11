@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 using SkyRoute.Api.Endpoints;
+using SkyRoute.Api.Hubs;
+using SkyRoute.Infrastructure.Simulation;
 
 const string FrontendCorsPolicy = "Frontend";
 
@@ -23,6 +25,7 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod()
         // SignalR (#6) needs credentials.
         .AllowCredentials()));
+builder.Services.AddSimulation<TelemetryHub>();
 
 var app = builder.Build();
 
@@ -39,5 +42,7 @@ app.UseCors(FrontendCorsPolicy);
 
 app.MapMissionEndpoints();
 app.MapDroneEndpoints();
+
+app.MapHub<TelemetryHub>("/hubs/telemetry");
 
 app.Run();

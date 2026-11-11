@@ -3,11 +3,20 @@ using SkyRoute.Domain.Missions;
 
 namespace SkyRoute.Infrastructure.External;
 
-public sealed class FakePaymentGateway(bool approved = true, string? rejectionReason = "Payment rejected") : IPaymentGateway
+// Every link reports the configured status: Paid by default, so the demo flows without a real payer.
+public sealed class FakePaymentGateway(PaymentStatus status = PaymentStatus.Paid) : IPaymentGateway
 {
-    public Task<PaymentResult> ChargeMissionAsync(Mission mission, CancellationToken cancellationToken = default)
+    public Task<PaymentLink> CreatePaymentLinkAsync(Mission mission, decimal amount, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(new PaymentResult(approved, approved ? null : rejectionReason));
+        var id = Guid.NewGuid().ToString("N");
+        var link = new PaymentLink(id, amount, new Uri($"https://fake-payments.local/checkout/{id}"), DateTimeOffset.UtcNow.AddMinutes(30));
+        return Task.FromResult(link);
+    }
+
+    public Task<PaymentStatus> GetPaymentStatusAsync(string paymentLinkId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(status);
     }
 }
