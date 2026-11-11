@@ -7,6 +7,9 @@ namespace SkyRoute.Api.Endpoints;
 
 public static class MissionEndpoints
 {
+    // Base URL of the web app that serves the embeddable tracking page ("PublicWebUrl", env var PublicWebUrl).
+    private const string DefaultPublicWebUrl = "http://localhost:3000";
+
     public static IEndpointRouteBuilder MapMissionEndpoints(this IEndpointRouteBuilder app)
     {
         var missions = app.MapGroup("/missions").WithTags("Missions");
@@ -14,23 +17,24 @@ public static class MissionEndpoints
         missions.MapPost("/", RequestMissionAsync)
             .WithName("RequestMission")
             .WithSummary("Request a package delivery.")
-            .WithDescription("Validates the package weight (at most 2.5 kg), the flight range (at most 25 km from a drone base and back), the recipient, and the weather, and sets the mission price. A rejected request returns 422 with the reason in `detail` and is not saved. If `callbackUrl` is set, the same JSON as `GET /missions/{id}` is POSTed to it when the mission ends as Completed or Failed.")
+            .WithDescription("Validates the package weight (at most 2.5 kg), the flight range (at most 25 km from a drone base and back), the recipient, and the weather, and sets the mission price. A rejected request returns 422 with the reason in `detail` and is not saved. If `callbackUrl` is set, the same JSON as `GET /api/missions/{id}` is POSTed to it when the mission ends as Completed or Failed.")
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
-        missions.MapGet("/", async (IMissionRepository repository, CancellationToken cancellationToken) =>
-                TypedResults.Ok((await repository.ListAsync(cancellationToken)).Select(ToResponse).ToArray()))
+        missions.MapGet("/", async (IMissionRepository repository, IConfiguration configuration, CancellationToken cancellationToken) =>
+                TypedResults.Ok((await repository.ListAsync(cancellationToken)).Select(mission => ToResponse(mission, configuration)).ToArray()))
             .WithName("ListMissions")
             .WithSummary("List all missions with their status.");
 
         missions.MapGet("/{id:guid}", GetMissionAsync)
             .WithName("GetMission")
             .WithSummary("Get one mission.")
+            .WithDescription("`trackingUrl` is a public page with the live map of the mission, meant to be embedded in an iframe.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         missions.MapPost("/{id:guid}/payment", PayMissionAsync)
             .WithName("PayMission")
             .WithSummary("Start the payment of a validated mission.")
-            .WithDescription("Creates a Padi checkout link for the mission price and returns 202 with `checkoutUrl`. The mission stays Validated until the payment is confirmed, then becomes Paid, and Assigned as soon as a drone is available; follow it with `GET /missions/{id}`. If the link expires unpaid, call this endpoint again for a new one. A mission that is not Validated returns 422 with the reason in `detail`.")
+            .WithDescription("Creates a Padi checkout link for the mission price and returns 202 with `checkoutUrl`. The mission stays Validated until the payment is confirmed, then becomes Paid, and Assigned as soon as a drone is available; follow it with `GET /api/missions/{id}`. If the link expires unpaid, call this endpoint again for a new one. A mission that is not Validated returns 422 with the reason in `detail`.")
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
@@ -38,7 +42,7 @@ public static class MissionEndpoints
     }
 
     private static async Task<Results<Created<MissionResponse>, ProblemHttpResult>> RequestMissionAsync(
-        RequestMissionRequest request, RequestMission requestMission, CancellationToken cancellationToken)
+        RequestMissionRequest request, RequestMission requestMission, IConfiguration configuration, CancellationToken cancellationToken)
     {
         // The JSON body can omit required fields; reject them like any other invalid request.
         if (request.Origin is null || request.Destination is null || string.IsNullOrWhiteSpace(request.RecipientDni))
@@ -59,17 +63,17 @@ public static class MissionEndpoints
             return Unprocessable(result.RejectionReason ?? "Mission request rejected.");
         }
 
-        var response = ToResponse(result.Mission);
-        return TypedResults.Created($"/missions/{response.Id}", response);
+        var response = ToResponse(result.Mission, configuration);
+        return TypedResults.Created($"/api/missions/{response.Id}", response);
     }
 
     private static async Task<Results<Ok<MissionResponse>, ProblemHttpResult>> GetMissionAsync(
-        Guid id, IMissionRepository repository, CancellationToken cancellationToken)
+        Guid id, IMissionRepository repository, IConfiguration configuration, CancellationToken cancellationToken)
     {
         var mission = await repository.GetAsync(id, cancellationToken);
         return mission is null
             ? TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Mission {id} not found.")
-            : TypedResults.Ok(ToResponse(mission));
+            : TypedResults.Ok(ToResponse(mission, configuration));
     }
 
     private static async Task<Results<Accepted<PaymentResponse>, ProblemHttpResult>> PayMissionAsync(
@@ -79,7 +83,7 @@ public static class MissionEndpoints
         return result.Outcome switch
         {
             PayMissionOutcome.Started => TypedResults.Accepted(
-                $"/missions/{id}",
+                $"/api/missions/{id}",
                 new PaymentResponse(id, result.PaymentLink!.Amount, result.PaymentLink.CheckoutUrl, result.PaymentLink.ExpiresAt)),
             PayMissionOutcome.NotFound => TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Mission {id} not found."),
             _ => Unprocessable(result.RejectionReason ?? "Payment rejected."),
@@ -89,7 +93,7 @@ public static class MissionEndpoints
     private static ProblemHttpResult Unprocessable(string reason) =>
         TypedResults.Problem(statusCode: StatusCodes.Status422UnprocessableEntity, detail: reason);
 
-    private static MissionResponse ToResponse(Domain.Missions.Mission mission) => new(
+    private static MissionResponse ToResponse(Domain.Missions.Mission mission, IConfiguration configuration) => new(
         mission.Id,
         Enum.Parse<MissionStatus>(mission.Status.ToString()),
         ToContract(mission.Route.Origin),
@@ -97,9 +101,13 @@ public static class MissionEndpoints
         mission.PackageWeightKg,
         mission.Price,
         mission.AssignedDroneId,
+        TrackingUrl(configuration, mission.Id),
         mission.FailureReason);
 
     private static Domain.Coordinates ToDomain(Coordinates coordinates) => new(coordinates.Lat, coordinates.Lon);
 
     private static Coordinates ToContract(Domain.Coordinates coordinates) => new(coordinates.Lat, coordinates.Lon);
+
+    private static Uri TrackingUrl(IConfiguration configuration, Guid missionId) =>
+        new($"{(configuration["PublicWebUrl"] ?? DefaultPublicWebUrl).TrimEnd('/')}/embed/missions/{missionId}");
 }
