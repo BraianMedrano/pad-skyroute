@@ -17,7 +17,6 @@ public sealed class FakeDroneLoop(TelemetryBroadcaster broadcaster, ILogger<Fake
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(1);
     private const double MetersPerTick = 15;
     private const double BatteryDrainPerTick = 0.1;
-    private const double EarthRadiusMeters = 6_371_000;
 
     // Closed circuit around Plaza Independencia, San Miguel de Tucumán (clockwise).
     private static readonly Coordinates[] Route =
@@ -72,16 +71,14 @@ public sealed class FakeDroneLoop(TelemetryBroadcaster broadcaster, ILogger<Fake
             }
         }
 
-        var fraction = _metersIntoSegment / DistanceMeters(From, To);
-        var lat = From.Lat + (To.Lat - From.Lat) * fraction;
-        var lon = From.Lon + (To.Lon - From.Lon) * fraction;
+        var position = GeoMath.Interpolate(From, To, _metersIntoSegment / DistanceMeters(From, To));
 
         return new TelemetryMessage(
             DroneId,
             MissionId: null,
-            Math.Round(lat, 6),
-            Math.Round(lon, 6),
-            Math.Round(BearingDeg(From, To), 1),
+            Math.Round(position.Lat, 6),
+            Math.Round(position.Lon, 6),
+            Math.Round(GeoMath.BearingDeg(From, To), 1),
             Math.Round(_batteryPct, 1),
             DroneStatus.Busy,
             DateTimeOffset.UtcNow);
@@ -90,24 +87,5 @@ public sealed class FakeDroneLoop(TelemetryBroadcaster broadcaster, ILogger<Fake
     private Coordinates From => Route[_segment];
     private Coordinates To => Route[(_segment + 1) % Route.Length];
 
-    // Equirectangular approximation: accurate enough over a few hundred meters.
-    private static double DistanceMeters(Coordinates a, Coordinates b)
-    {
-        var x = ToRadians(b.Lon - a.Lon) * Math.Cos(ToRadians((a.Lat + b.Lat) / 2));
-        var y = ToRadians(b.Lat - a.Lat);
-        return Math.Sqrt(x * x + y * y) * EarthRadiusMeters;
-    }
-
-    // Initial bearing from a to b: 0 = north, 90 = east.
-    private static double BearingDeg(Coordinates a, Coordinates b)
-    {
-        var lat1 = ToRadians(a.Lat);
-        var lat2 = ToRadians(b.Lat);
-        var dLon = ToRadians(b.Lon - a.Lon);
-        var y = Math.Sin(dLon) * Math.Cos(lat2);
-        var x = Math.Cos(lat1) * Math.Sin(lat2) - Math.Sin(lat1) * Math.Cos(lat2) * Math.Cos(dLon);
-        return (Math.Atan2(y, x) * 180 / Math.PI + 360) % 360;
-    }
-
-    private static double ToRadians(double degrees) => degrees * Math.PI / 180;
+    private static double DistanceMeters(Coordinates a, Coordinates b) => GeoMath.DistanceKm(a, b) * 1000;
 }
