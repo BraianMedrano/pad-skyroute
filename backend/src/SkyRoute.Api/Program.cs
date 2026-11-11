@@ -31,6 +31,7 @@ builder.Services.AddCors(options =>
         .AllowCredentials()));
 builder.Services.AddSimulation<TelemetryHub>();
 builder.Services.AddPersistence(builder.Configuration);
+builder.Services.AddScoped<SkyRoute.Application.Missions.RequestMission>();
 
 var app = builder.Build();
 

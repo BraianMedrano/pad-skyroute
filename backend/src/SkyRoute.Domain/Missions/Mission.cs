@@ -35,6 +35,7 @@ public sealed class Mission
     public Route Route { get; }
     public double PackageWeightKg { get; }
     public string RecipientDni { get; }
+    public decimal Price { get; private set; }
     public MissionStatus Status { get; private set; }
     public Guid? AssignedDroneId { get; private set; }
     public string? FailureReason { get; private set; }
@@ -42,7 +43,11 @@ public sealed class Mission
     public static Mission RequestDelivery(Route route, double packageWeightKg, string recipientDni) =>
         new(Guid.NewGuid(), MissionType.Delivery, route, packageWeightKg, recipientDni);
 
-    public void Validate() => MoveTo(MissionStatus.Requested, MissionStatus.Validated);
+    public void Validate(decimal price)
+    {
+        MoveTo(MissionStatus.Requested, MissionStatus.Validated);
+        Price = price;
+    }
 
     public void MarkPaid() => MoveTo(MissionStatus.Validated, MissionStatus.Paid);
 

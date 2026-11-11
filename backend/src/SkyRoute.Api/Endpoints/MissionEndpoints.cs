@@ -1,13 +1,13 @@
+using Microsoft.AspNetCore.Http.HttpResults;
 using SkyRoute.Api.Contracts;
+using SkyRoute.Application.Missions;
+using Domain = SkyRoute.Domain;
 
 namespace SkyRoute.Api.Endpoints;
 
 public static class MissionEndpoints
 {
-    // Stub data until the use cases land (#10, #11). The contract is what matters here.
-    // Plaza Independencia and Parque 9 de Julio, San Miguel de Tucumán.
-    private static readonly Coordinates SampleOrigin = new(-26.8305, -65.2039);
-    private static readonly Coordinates SampleDestination = new(-26.8317, -65.1912);
+    // Stub payment until the pay and assign use cases land (#11). The contract is what matters here.
     private const decimal SamplePrice = 3500m;
 
     // Base URL of the web app that serves the embeddable tracking page ("PublicWebUrl", env var PublicWebUrl).
@@ -17,35 +17,18 @@ public static class MissionEndpoints
     {
         var missions = app.MapGroup("/missions").WithTags("Missions");
 
-        missions.MapPost("/", (RequestMissionRequest request, IConfiguration configuration) =>
-            {
-                var id = Guid.NewGuid();
-                var mission = new MissionResponse(
-                    id,
-                    MissionStatus.Validated,
-                    request.Origin,
-                    request.Destination,
-                    request.PackageWeightKg,
-                    SamplePrice,
-                    AssignedDroneId: null,
-                    TrackingUrl(configuration, id));
-                return TypedResults.Created($"/api/missions/{mission.Id}", mission);
-            })
+        missions.MapPost("/", RequestMissionAsync)
             .WithName("RequestMission")
             .WithSummary("Request a package delivery.")
-            .WithDescription("Validates the recipient and the weather. A rejected request returns 422 with the reason in `detail` and is not saved. If `callbackUrl` is set, the same JSON as `GET /api/missions/{id}` is POSTed to it when the mission ends as Completed or Failed.")
+            .WithDescription("Validates the package weight (at most 2.5 kg), the flight range (at most 25 km from a drone base and back), the recipient, and the weather, and sets the mission price. A rejected request returns 422 with the reason in `detail` and is not saved. If `callbackUrl` is set, the same JSON as `GET /api/missions/{id}` is POSTed to it when the mission ends as Completed or Failed.")
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
-        missions.MapGet("/", (IConfiguration configuration) => TypedResults.Ok(new[]
-            {
-                SampleMission(configuration, Guid.NewGuid(), MissionStatus.Validated, assignedDroneId: null),
-                SampleMission(configuration, Guid.NewGuid(), MissionStatus.InProgress, DroneEndpoints.SampleDroneId),
-            }))
+        missions.MapGet("/", async (IMissionRepository repository, IConfiguration configuration, CancellationToken cancellationToken) =>
+                TypedResults.Ok((await repository.ListAsync(cancellationToken)).Select(mission => ToResponse(mission, configuration)).ToArray()))
             .WithName("ListMissions")
             .WithSummary("List all missions with their status.");
 
-        missions.MapGet("/{id:guid}", (Guid id, IConfiguration configuration) =>
-                TypedResults.Ok(SampleMission(configuration, id, MissionStatus.InProgress, DroneEndpoints.SampleDroneId)))
+        missions.MapGet("/{id:guid}", GetMissionAsync)
             .WithName("GetMission")
             .WithSummary("Get one mission.")
             .WithDescription("`trackingUrl` is a public page with the live map of the mission, meant to be embedded in an iframe.")
@@ -66,8 +49,58 @@ public static class MissionEndpoints
         return app;
     }
 
-    private static MissionResponse SampleMission(IConfiguration configuration, Guid id, MissionStatus status, Guid? assignedDroneId) =>
-        new(id, status, SampleOrigin, SampleDestination, PackageWeightKg: 1.5, SamplePrice, assignedDroneId, TrackingUrl(configuration, id));
+    private static async Task<Results<Created<MissionResponse>, ProblemHttpResult>> RequestMissionAsync(
+        RequestMissionRequest request, RequestMission requestMission, IConfiguration configuration, CancellationToken cancellationToken)
+    {
+        // The JSON body can omit required fields; reject them like any other invalid request.
+        if (request.Origin is null || request.Destination is null || string.IsNullOrWhiteSpace(request.RecipientDni))
+        {
+            return Unprocessable("Origin, destination, and recipientDni are required.");
+        }
+
+        var result = await requestMission.ExecuteAsync(
+            new RequestMissionCommand(
+                ToDomain(request.Origin),
+                ToDomain(request.Destination),
+                request.PackageWeightKg,
+                request.RecipientDni),
+            cancellationToken);
+
+        if (result.Mission is null)
+        {
+            return Unprocessable(result.RejectionReason ?? "Mission request rejected.");
+        }
+
+        var response = ToResponse(result.Mission, configuration);
+        return TypedResults.Created($"/api/missions/{response.Id}", response);
+    }
+
+    private static async Task<Results<Ok<MissionResponse>, ProblemHttpResult>> GetMissionAsync(
+        Guid id, IMissionRepository repository, IConfiguration configuration, CancellationToken cancellationToken)
+    {
+        var mission = await repository.GetAsync(id, cancellationToken);
+        return mission is null
+            ? TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Mission {id} not found.")
+            : TypedResults.Ok(ToResponse(mission, configuration));
+    }
+
+    private static ProblemHttpResult Unprocessable(string reason) =>
+        TypedResults.Problem(statusCode: StatusCodes.Status422UnprocessableEntity, detail: reason);
+
+    private static MissionResponse ToResponse(Domain.Missions.Mission mission, IConfiguration configuration) => new(
+        mission.Id,
+        Enum.Parse<MissionStatus>(mission.Status.ToString()),
+        ToContract(mission.Route.Origin),
+        ToContract(mission.Route.Destination),
+        mission.PackageWeightKg,
+        mission.Price,
+        mission.AssignedDroneId,
+        TrackingUrl(configuration, mission.Id),
+        mission.FailureReason);
+
+    private static Domain.Coordinates ToDomain(Coordinates coordinates) => new(coordinates.Lat, coordinates.Lon);
+
+    private static Coordinates ToContract(Domain.Coordinates coordinates) => new(coordinates.Lat, coordinates.Lon);
 
     private static Uri TrackingUrl(IConfiguration configuration, Guid missionId) =>
         new($"{(configuration["PublicWebUrl"] ?? DefaultPublicWebUrl).TrimEnd('/')}/embed/missions/{missionId}");
