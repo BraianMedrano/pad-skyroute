@@ -1,6 +1,6 @@
 # SkyRoute VPS deployment
 
-How SkyRoute (API + web) is deployed on the shared test VPS `castel-lab-01`. Written 2026-11-10 from the Castel Tech and Palestra infrastructure records. The demo is presented on **Wednesday 2026-11-18**.
+How SkyRoute (API + web) is deployed on the shared Castel Tech test VPS. Written 2026-11-10 from the Castel Tech infrastructure records, which are private and hold the host details this public repository leaves out. The demo is presented on **Wednesday 2026-11-18**.
 
 ## Decision
 
@@ -32,22 +32,21 @@ https://skyroute.casteltech.ar/api/   -> skyroute_api:8080  (ASP.NET Core, Signa
 
 | Item | Value |
 |---|---|
-| Provider / IP | Hetzner, `178.104.153.104` |
-| Hostname | `castel-lab-01`, Ubuntu 26.04, Docker + Compose v5 |
-| Operator | `braian` (in the `docker` group: Docker needs no `sudo`; files under `/opt` do) |
+| Host | Ubuntu with Docker + Compose v5. Address and access: Castel Tech infrastructure records. |
+| Operator | In the `docker` group: Docker needs no `sudo`; files under `/opt` do. |
 | Reverse proxy | Container `castel_proxy` (`nginx:1.30.4-alpine`), stack in `/opt/castel-stack` |
 | Vhosts | `/opt/castel-stack/nginx/conf.d/*.conf` (only `*.conf` is loaded) |
 | Certificate | Cloudflare Origin Cert for `casteltech.ar` + `*.casteltech.ar`, inside the container at `/etc/nginx/certs/casteltech-origin.pem` / `.key` |
 | Shared network | External Docker network `castel_network` |
 | Cloudflare SSL | Full (strict) |
-| Memory (2026-11-10) | 3.7 GiB RAM, 2.7 GiB available, 2 GiB swap unused. Nothing needs to be stopped. Building .NET + Next on the host peaks around 1-1.5 GB. |
+| Memory | Enough for SkyRoute without stopping anything. Building .NET + Next on the host peaks around 1-1.5 GB. |
 
-Other tenants on the host, never touch them: `castel_proxy`, `casteltech_web`, `palestra_api`, `palestra_db`, `palestra_web`, `engram_cloud`, `engram_cloud_postgres`, `portainer`, and the stopped `agroflow-*` containers.
+Other projects share the host: never touch a container, vhost, or compose file that is not SkyRoute's.
 
 ## Host rules (mandatory)
 
-1. **No container publishes a port without a `127.0.0.1:` prefix.** `castel_proxy` is the only exception. The `DOCKER-USER` chain is empty, so UFW does not filter Docker-published ports. SkyRoute publishes nothing on the VPS.
-2. **The origin only accepts 80/443 from Cloudflare** (Hetzner firewall). The DNS record must be **proxied** (orange cloud); a DNS-only record is unreachable.
+1. **No container publishes a port without a `127.0.0.1:` prefix.** Docker-published ports bypass the host firewall. SkyRoute publishes nothing on the VPS.
+2. **Traffic must come through Cloudflare.** The DNS record must be **proxied** (orange cloud); a DNS-only record is unreachable.
 3. **Be surgical.** Add files, never edit another tenant's vhost or compose. Every step has a rollback ready before it runs.
 4. Braian runs every VPS command himself, one line at a time. The host has `grep`/`cat`, not `rg`/`fd`.
 
@@ -136,7 +135,7 @@ Check before copying: if the existing vhosts in `conf.d` use `listen 443 ssl htt
 Each line is one command. Run from `~` unless stated.
 
 **1. DNS (Cloudflare dashboard, zone `casteltech.ar`)**
-Add `A skyroute 178.104.153.104`, **Proxied**. Rollback: delete the record.
+Add `A skyroute <VPS address>` (from the Castel Tech infrastructure records), **Proxied**. Rollback: delete the record.
 
 **2. Get the code**
 
@@ -198,6 +197,5 @@ Rollback: `git checkout <previous-sha>` and run the same command.
 
 ## Sources
 
-- Castel Tech repo: `docs/domain-vps-handoff.md`, `docs/vps-hardening-log.md` (firewall, host rules, proxy).
-- Palestra API repo: `docs/deploy-api-vps.md`, `deploy/nginx/api.palestra.ar.conf` (vhost pattern).
-- Engram, project `castel-tech-web`, topic `deploy/pad-skyroute-vps-plan`.
+- Castel Tech infrastructure records (private): host details, firewall, host rules, and the shared proxy.
+- The vhost follows the pattern of the other vhosts on the shared proxy.
