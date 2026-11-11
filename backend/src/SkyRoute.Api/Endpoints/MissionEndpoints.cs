@@ -24,11 +24,11 @@ public static class MissionEndpoints
                     request.PackageWeightKg,
                     SamplePrice,
                     AssignedDroneId: null);
-                return TypedResults.Created($"/missions/{mission.Id}", mission);
+                return TypedResults.Created($"/api/missions/{mission.Id}", mission);
             })
             .WithName("RequestMission")
             .WithSummary("Request a package delivery.")
-            .WithDescription("Validates the recipient and the weather. A rejected request returns 422 with the reason in `detail` and is not saved. If `callbackUrl` is set, the same JSON as `GET /missions/{id}` is POSTed to it when the mission ends as Completed or Failed.")
+            .WithDescription("Validates the recipient and the weather. A rejected request returns 422 with the reason in `detail` and is not saved. If `callbackUrl` is set, the same JSON as `GET /api/missions/{id}` is POSTed to it when the mission ends as Completed or Failed.")
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         missions.MapGet("/", () => TypedResults.Ok(new[]
@@ -46,14 +46,14 @@ public static class MissionEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         missions.MapPost("/{id:guid}/payment", (Guid id) =>
-                TypedResults.Accepted($"/missions/{id}", new PaymentResponse(
+                TypedResults.Accepted($"/api/missions/{id}", new PaymentResponse(
                     id,
                     SamplePrice,
                     new Uri("https://padi-billetera.netlify.app/checkout/sample"),
                     DateTimeOffset.UtcNow.AddMinutes(30))))
             .WithName("PayMission")
             .WithSummary("Start the payment of a validated mission.")
-            .WithDescription("Creates a Padi checkout link for the mission price and returns 202 with `checkoutUrl`. The mission stays Validated until the payment is confirmed, then becomes Paid, and Assigned as soon as a drone is available; follow it with `GET /missions/{id}`. If the link expires unpaid, call this endpoint again for a new one. A mission that is not Validated returns 422 with the reason in `detail`.")
+            .WithDescription("Creates a Padi checkout link for the mission price and returns 202 with `checkoutUrl`. The mission stays Validated until the payment is confirmed, then becomes Paid, and Assigned as soon as a drone is available; follow it with `GET /api/missions/{id}`. If the link expires unpaid, call this endpoint again for a new one. A mission that is not Validated returns 422 with the reason in `detail`.")
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
