@@ -30,6 +30,8 @@ public record MissionResponse(
     // ARS 2000 base plus ARS 250 per km of the full trip (base → origin → destination → base), rounded to whole pesos.
     decimal Price,
     Guid? AssignedDroneId,
+    // Public page with the live map of this mission, meant to be embedded in an iframe.
+    Uri TrackingUrl,
     // Set only when Status is Failed.
     string? FailureReason = null);
 
