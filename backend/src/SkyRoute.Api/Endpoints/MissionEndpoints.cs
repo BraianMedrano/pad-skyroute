@@ -7,9 +7,6 @@ namespace SkyRoute.Api.Endpoints;
 
 public static class MissionEndpoints
 {
-    // Stub payment until the pay and assign use cases land (#11). The contract is what matters here.
-    private const decimal SamplePrice = 3500m;
-
     // Base URL of the web app that serves the embeddable tracking page ("PublicWebUrl", env var PublicWebUrl).
     private const string DefaultPublicWebUrl = "http://localhost:3000";
 
@@ -34,12 +31,7 @@ public static class MissionEndpoints
             .WithDescription("`trackingUrl` is a public page with the live map of the mission, meant to be embedded in an iframe.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        missions.MapPost("/{id:guid}/payment", (Guid id) =>
-                TypedResults.Accepted($"/api/missions/{id}", new PaymentResponse(
-                    id,
-                    SamplePrice,
-                    new Uri("https://padi-billetera.netlify.app/checkout/sample"),
-                    DateTimeOffset.UtcNow.AddMinutes(30))))
+        missions.MapPost("/{id:guid}/payment", PayMissionAsync)
             .WithName("PayMission")
             .WithSummary("Start the payment of a validated mission.")
             .WithDescription("Creates a Padi checkout link for the mission price and returns 202 with `checkoutUrl`. The mission stays Validated until the payment is confirmed, then becomes Paid, and Assigned as soon as a drone is available; follow it with `GET /api/missions/{id}`. If the link expires unpaid, call this endpoint again for a new one. A mission that is not Validated returns 422 with the reason in `detail`.")
@@ -82,6 +74,20 @@ public static class MissionEndpoints
         return mission is null
             ? TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Mission {id} not found.")
             : TypedResults.Ok(ToResponse(mission, configuration));
+    }
+
+    private static async Task<Results<Accepted<PaymentResponse>, ProblemHttpResult>> PayMissionAsync(
+        Guid id, PayMission payMission, CancellationToken cancellationToken)
+    {
+        var result = await payMission.ExecuteAsync(id, cancellationToken);
+        return result.Outcome switch
+        {
+            PayMissionOutcome.Started => TypedResults.Accepted(
+                $"/api/missions/{id}",
+                new PaymentResponse(id, result.PaymentLink!.Amount, result.PaymentLink.CheckoutUrl, result.PaymentLink.ExpiresAt)),
+            PayMissionOutcome.NotFound => TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, detail: $"Mission {id} not found."),
+            _ => Unprocessable(result.RejectionReason ?? "Payment rejected."),
+        };
     }
 
     private static ProblemHttpResult Unprocessable(string reason) =>
