@@ -21,4 +21,13 @@ public sealed class Drone(Guid id, string name, Coordinates homePosition)
         }
         Status = DroneStatus.Busy;
     }
+
+    public void MarkAvailable()
+    {
+        if (Status != DroneStatus.Busy)
+        {
+            throw new InvalidOperationException($"Drone {Name} is {Status}; only a Busy drone can become Available.");
+        }
+        Status = DroneStatus.Available;
+    }
 }

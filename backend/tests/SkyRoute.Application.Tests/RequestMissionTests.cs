@@ -42,6 +42,16 @@ public class RequestMissionTests
     }
 
     [Fact]
+    public async Task The_callback_url_is_saved_with_the_mission()
+    {
+        var callbackUrl = new Uri("https://delivery.example/webhooks/skyroute");
+
+        var result = await UseCase().ExecuteAsync(Command() with { CallbackUrl = callbackUrl });
+
+        Assert.Equal(callbackUrl, (await _missions.GetAsync(result.Mission!.Id))!.CallbackUrl);
+    }
+
+    [Fact]
     public async Task A_valid_request_is_priced_by_the_shortest_trip_among_the_bases_that_can_fly_it()
     {
         // A second base about 2 km west is also within range, but the Centro trip is shorter.

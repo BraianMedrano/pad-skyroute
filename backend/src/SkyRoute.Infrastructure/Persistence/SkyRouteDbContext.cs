@@ -27,6 +27,8 @@ public sealed class SkyRouteDbContext(DbContextOptions<SkyRouteDbContext> option
             mission.Property(m => m.PaymentLinkId);
             mission.Property(m => m.AssignedDroneId);
             mission.Property(m => m.FailureReason);
+            mission.Property(m => m.CallbackUrl);
+            mission.Property(m => m.RequestedAt);
             mission.Property(m => m.Route).HasConversion(
                 route => $"{Format(route.Origin)};{Format(route.Destination)}",
                 text => ParseRoute(text));
