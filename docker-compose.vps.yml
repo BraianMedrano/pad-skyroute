@@ -6,6 +6,8 @@ services:
     environment:
       # Trust X-Forwarded-Proto/For from the shared nginx, so the API knows requests arrive over https.
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      # Base of the trackingUrl returned on every mission (embeddable map page on the web app).
+      PublicWebUrl: https://skyroute.casteltech.ar
     restart: unless-stopped
     networks: [default, castel_network]
 

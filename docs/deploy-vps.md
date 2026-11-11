@@ -25,7 +25,8 @@ https://skyroute.casteltech.ar/api/   -> skyroute_api:8080  (ASP.NET Core, Signa
 3. **CORS only in Development**, allowing `http://localhost:3000`. Production needs none because web and API share an origin. Server-to-server callers (Padi, food delivery) are never subject to CORS.
 4. **The API trusts the proxy's forwarded headers** (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` in `docker-compose.vps.yml`), so it sees `https` and the client IP instead of the internal hop.
 5. **The SQLite file lives on the `api-data` volume** (`Database__Path=/app/data/skyroute.db` in `docker-compose.yml`).
-6. **`NEXT_PUBLIC_API_URL` is inlined at build time.** On the VPS build it as `https://skyroute.casteltech.ar`; frontend code appends `/api/...` paths, the same code path used locally with `http://localhost:5113`.
+6. **`PublicWebUrl` is the base of every mission's `trackingUrl`** (`https://skyroute.casteltech.ar` in `docker-compose.vps.yml`; defaults to `http://localhost:3000`). The page `/embed/missions/{id}` must allow being framed by other origins.
+7. **`NEXT_PUBLIC_API_URL` is inlined at build time.** On the VPS build it as `https://skyroute.casteltech.ar`; frontend code appends `/api/...` paths, the same code path used locally with `http://localhost:5113`.
 
 ## VPS facts
 
@@ -63,6 +64,7 @@ services:
     ports: !reset []
     environment:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      PublicWebUrl: https://skyroute.casteltech.ar
     restart: unless-stopped
     networks: [default, castel_network]
 
