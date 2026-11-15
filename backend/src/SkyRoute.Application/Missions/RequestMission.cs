@@ -1,3 +1,4 @@
+using System.Globalization;
 using SkyRoute.Application.Drones;
 using SkyRoute.Application.External;
 using SkyRoute.Domain;
@@ -35,7 +36,7 @@ public sealed class RequestMission(
         if (!FlightRules.IsPackageWeightAllowed(mission.PackageWeightKg))
         {
             return RequestMissionResult.Rejected(
-                $"Package weight must be greater than 0 and at most {FlightRules.MaxPackageWeightKg} kg.");
+                string.Create(CultureInfo.InvariantCulture, $"Package weight must be greater than 0 and at most {FlightRules.MaxPackageWeightKg} kg."));
         }
 
         // A base is the home position of its drones.
@@ -48,7 +49,7 @@ public sealed class RequestMission(
         if (trips.Count == 0)
         {
             return RequestMissionResult.Rejected(
-                $"Out of range: no base can fly base → origin → destination → base within {FlightRules.MaxFlightKm} km.");
+                string.Create(CultureInfo.InvariantCulture, $"Out of range: no base can fly base → origin → destination → base within {FlightRules.MaxFlightKm} km."));
         }
 
         var recipient = await identity.ValidateRecipientAsync(mission.RecipientDni, cancellationToken);

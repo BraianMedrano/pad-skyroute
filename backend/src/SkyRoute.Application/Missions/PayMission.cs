@@ -33,7 +33,17 @@ public sealed class PayMission(IMissionRepository missions, IPaymentGateway paym
 
         var link = await payments.CreatePaymentLinkAsync(mission, mission.Price, cancellationToken);
         mission.AttachPaymentLink(link.Id);
-        await missions.UpdateAsync(mission, cancellationToken);
+        try
+        {
+            await missions.UpdateAsync(mission, cancellationToken);
+        }
+        catch (ConcurrentUpdateException)
+        {
+            // The poller confirmed the previous link meanwhile: keep its assignment and never hand out a second link.
+            return new PayMissionResult(
+                PayMissionOutcome.Rejected,
+                RejectionReason: "Only a Validated mission can be paid; it changed while the payment was being started.");
+        }
         return new PayMissionResult(PayMissionOutcome.Started, link);
     }
 }

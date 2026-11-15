@@ -8,6 +8,9 @@ public sealed class InMemoryMissionRepository : IMissionRepository
 {
     private readonly Dictionary<Guid, Mission> _missions = [];
 
+    // Makes the next update fail as if another writer changed the mission after it was read.
+    public bool RejectNextUpdateAsConcurrent { get; set; }
+
     public Task AddAsync(Mission mission, CancellationToken cancellationToken = default)
     {
         _missions.Add(mission.Id, mission);
@@ -22,6 +25,11 @@ public sealed class InMemoryMissionRepository : IMissionRepository
 
     public Task UpdateAsync(Mission mission, CancellationToken cancellationToken = default)
     {
+        if (RejectNextUpdateAsConcurrent)
+        {
+            RejectNextUpdateAsConcurrent = false;
+            throw new ConcurrentUpdateException($"Mission {mission.Id} was changed by someone else.");
+        }
         _missions[mission.Id] = mission;
         return Task.CompletedTask;
     }

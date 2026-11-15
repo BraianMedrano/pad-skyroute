@@ -70,6 +70,20 @@ public class PayMissionTests
     }
 
     [Fact]
+    public async Task A_mission_changed_by_someone_else_while_its_link_is_created_is_rejected_without_a_link()
+    {
+        // For example, the poller confirmed the previous link and assigned a drone in the meantime.
+        var mission = await SavedMission();
+        _missions.RejectNextUpdateAsConcurrent = true;
+
+        var result = await UseCase().ExecuteAsync(mission.Id);
+
+        Assert.Equal(PayMissionOutcome.Rejected, result.Outcome);
+        Assert.Equal("Only a Validated mission can be paid; it changed while the payment was being started.", result.RejectionReason);
+        Assert.Null(result.PaymentLink);
+    }
+
+    [Fact]
     public async Task Paying_an_unknown_mission_returns_not_found()
     {
         var result = await UseCase().ExecuteAsync(Guid.NewGuid());
