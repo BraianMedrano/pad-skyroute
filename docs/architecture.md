@@ -17,7 +17,7 @@
 - Track missions in real time: every mission carries a `trackingUrl`, a public page with its live map meant to be embedded in an iframe (`/embed/missions/{id}` on the web app).
 - Webhook notification when a mission completes or fails.
 
-Every route lives under `/api`, including the SignalR hub. The OpenAPI document is at `/api/openapi/v1.json` and its reference page at `/api/scalar`. In the demo the base URL is `https://skyroute.casteltech.ar` (see [deploy-vps.md](deploy-vps.md)). Contract changes are additive only: new endpoints or fields may appear, existing ones are never renamed or removed, and `status` values never change.
+Every route lives under `/api`, including the SignalR hub. The OpenAPI document is at `/api/openapi/v1.json` and its reference page at `/api/scalar`. In the demo the base URL is `https://skyroute.casteltech.ar` (see [deploy-vps.md](deploy-vps.md)). The API has no authentication: no API key or token is needed (demo scope). Errors use ProblemDetails with the reason in `detail`: `422` for a rejected request, `503` when an external service (identity, weather, payments) is unavailable, so the call can be retried. Contract changes are additive only: new endpoints or fields may appear, existing ones are never renamed or removed, and `status` values never change.
 
 ## What we consume
 
@@ -27,7 +27,7 @@ Every route lives under `/api`, including the SignalR hub. The OpenAPI document 
 | Weather  | Open-Meteo                    | Block flights in high wind or rain       |
 | Payments | Padi (wallet group API) or fake | Charge for deliveries                  |
 
-Expected consumer: the food delivery group, requesting drone deliveries for their orders.
+Expected consumer: the Padi wallet group, the same group that provides our payments.
 
 ## Payment and notification
 
