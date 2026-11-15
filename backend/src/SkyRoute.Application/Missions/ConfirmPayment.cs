@@ -39,6 +39,9 @@ public sealed class ConfirmPayment(IMissionRepository missions, IDroneRepository
         {
             drone.MarkBusy();
             mission.Assign(drone.Id);
+            // With EF Core both repositories share one DbContext per scope, so this save also writes the
+            // mission in the same transaction. If another writer changed the drone or the mission after they
+            // were read, it throws ConcurrentUpdateException, nothing is saved, and the poller retries.
             await drones.UpdateAsync(drone, cancellationToken);
         }
 
