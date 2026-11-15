@@ -17,7 +17,7 @@ See [docs/architecture.md](docs/architecture.md) for the system overview.
 Requirements: .NET 10 SDK, Node.js and pnpm.
 
 ```sh
-# Backend: API on http://localhost:5113, OpenAPI at /openapi/v1.json
+# Backend: API on http://localhost:5113, OpenAPI at /api/openapi/v1.json, reference at /api/scalar
 dotnet run --project backend/src/SkyRoute.Api --launch-profile http
 
 # Backend tests
