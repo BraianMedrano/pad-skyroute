@@ -1,3 +1,4 @@
+using System.Globalization;
 using SkyRoute.Application.Missions;
 using SkyRoute.Domain;
 using SkyRoute.Domain.Drones;
@@ -87,7 +88,18 @@ public class RequestMissionTests
     [Fact]
     public async Task A_package_over_2_5_kg_returns_the_reason_and_saves_nothing()
     {
-        var result = await UseCase().ExecuteAsync(Command(weightKg: 2.6));
+        // A culture with a comma decimal separator must not change the reason.
+        var previous = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = new CultureInfo("es-AR");
+        RequestMissionResult result;
+        try
+        {
+            result = await UseCase().ExecuteAsync(Command(weightKg: 2.6));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previous;
+        }
 
         Assert.Null(result.Mission);
         Assert.Equal("Package weight must be greater than 0 and at most 2.5 kg.", result.RejectionReason);
