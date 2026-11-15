@@ -23,6 +23,7 @@ public sealed class SkyRouteDbContext(DbContextOptions<SkyRouteDbContext> option
             mission.Property(m => m.Status).HasConversion<string>();
             mission.Property(m => m.PackageWeightKg);
             mission.Property(m => m.RecipientDni);
+            mission.Property(m => m.Price);
             mission.Property(m => m.AssignedDroneId);
             mission.Property(m => m.FailureReason);
             mission.Property(m => m.Route).HasConversion(
