@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "api:types": "openapi-typescript http://localhost:5113/api/openapi/v1.json -o src/lib/api/schema.d.ts"
   },
   "dependencies": {
     "maplibre-gl": "^6.16.0",
@@ -18,6 +19,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
