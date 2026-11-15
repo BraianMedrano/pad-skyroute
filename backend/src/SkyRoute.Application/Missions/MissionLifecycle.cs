@@ -64,9 +64,10 @@ internal static class MissionEnd
 {
     // Frees the ended mission's drone and hands it to the oldest Paid mission in range. Every change is
     // applied before the first save: with EF Core both repositories share one DbContext per scope, so that
-    // save writes the ended mission, the drone, and the next mission in one transaction, and a failure never
-    // leaves a Busy drone without a mission. Everything is saved before the webhook is called, so a failed
-    // webhook never changes this state.
+    // save writes every changed row (the ended mission, the next mission, and the freed drone) in one
+    // transaction, and a failure never leaves a Busy drone without a mission. A drone handed straight to the
+    // next mission stays Busy, so it has no change to write. Everything is saved before the webhook is
+    // called, so a failed webhook never changes this state.
     public static async Task FreeDroneAsync(
         Mission ended, IMissionRepository missions, IDroneRepository drones, CancellationToken cancellationToken)
     {
