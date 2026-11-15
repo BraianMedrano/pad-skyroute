@@ -16,6 +16,9 @@ public enum FlightLeg
 /// </summary>
 public sealed class DroneFlight
 {
+    /// <summary>Battery drain: a full battery lasts 25 km, the longest allowed trip (#13).</summary>
+    public const double BatteryPctPerKm = 4;
+
     public DroneFlight(Guid droneId, Guid missionId, Coordinates start, Coordinates origin, Coordinates destination)
     {
         DroneId = droneId;
@@ -43,6 +46,13 @@ public sealed class DroneFlight
     public double FlownKm { get; private set; }
 
     public bool HasArrived => Leg == FlightLeg.Arrived;
+
+    /// <summary>
+    /// Battery left: the drone leaves with a full battery and drains <see cref="BatteryPctPerKm"/> per km flown.
+    /// </summary>
+    public double BatteryPct => Math.Max(0, 100 - FlownKm * BatteryPctPerKm);
+
+    public bool IsBatteryDepleted => BatteryPct <= 0;
 
     /// <summary>Distance left to the destination, through the origin if it is not reached yet.</summary>
     public double RemainingKm => Leg switch
@@ -86,17 +96,14 @@ public sealed class DroneFlight
         }
     }
 
-    /// <summary>
-    /// Telemetry for the current position. The battery level comes from the caller: how it drains and
-    /// recharges is not decided yet (#13).
-    /// </summary>
-    public TelemetryMessage ToTelemetry(double batteryPct, DateTimeOffset timestamp) => new(
+    /// <summary>Telemetry for the current position, battery, and heading.</summary>
+    public TelemetryMessage ToTelemetry(DateTimeOffset timestamp) => new(
         DroneId,
         MissionId,
         Math.Round(Position.Lat, 6),
         Math.Round(Position.Lon, 6),
         Math.Round(HeadingDeg, 1),
-        Math.Round(batteryPct, 1),
+        Math.Round(BatteryPct, 1),
         DroneStatus.Busy,
         timestamp);
 

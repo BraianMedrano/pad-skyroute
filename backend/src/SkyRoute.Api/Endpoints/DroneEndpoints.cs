@@ -1,25 +1,41 @@
+using Microsoft.AspNetCore.Http.HttpResults;
 using SkyRoute.Api.Contracts;
+using SkyRoute.Application.Drones;
+using SkyRoute.Infrastructure.Simulation;
 
 namespace SkyRoute.Api.Endpoints;
 
 public static class DroneEndpoints
 {
-    // Stub data until persistence (#9) and the simulator (#13) land.
-    public static readonly Guid SampleDroneId = Guid.Parse("8f14e45f-ceea-4672-9b3a-1d2c3e4f5a6b");
-    private static readonly Coordinates CentroBase = new(-26.8305, -65.2039);
-    private static readonly Coordinates YerbaBuenaBase = new(-26.8160, -65.3160);
-
     public static IEndpointRouteBuilder MapDroneEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/drones", () => TypedResults.Ok(new[]
-            {
-                new DroneResponse(SampleDroneId, "Falcon-1", DroneStatus.Busy, new Coordinates(-26.8311, -65.1975), CentroBase),
-                new DroneResponse(Guid.Parse("c9f0f895-fb98-4b91-8f2a-7e6d5c4b3a21"), "Falcon-2", DroneStatus.Available, YerbaBuenaBase, YerbaBuenaBase),
-            }))
+        app.MapGet("/drones", ListDronesAsync)
             .WithTags("Drones")
             .WithName("ListDrones")
             .WithSummary("List drones with their availability, position, and base.");
 
         return app;
+    }
+
+    // The fleet and its status come from the database; the position is the live one from the simulator's
+    // in-memory telemetry (#13), or the base before the simulator has placed the drone.
+    private static async Task<Ok<DroneResponse[]>> ListDronesAsync(
+        IDroneRepository drones, TelemetryStore telemetry, CancellationToken cancellationToken)
+    {
+        var fleet = await drones.ListAsync(cancellationToken);
+        return TypedResults.Ok(fleet
+            .Select(drone =>
+            {
+                var position = telemetry.Get(drone.Id) is { } live
+                    ? new Coordinates(live.Lat, live.Lon)
+                    : new Coordinates(drone.HomePosition.Lat, drone.HomePosition.Lon);
+                return new DroneResponse(
+                    drone.Id,
+                    drone.Name,
+                    drone.Status == Domain.Drones.DroneStatus.Busy ? DroneStatus.Busy : DroneStatus.Available,
+                    position,
+                    new Coordinates(drone.HomePosition.Lat, drone.HomePosition.Lon));
+            })
+            .ToArray());
     }
 }

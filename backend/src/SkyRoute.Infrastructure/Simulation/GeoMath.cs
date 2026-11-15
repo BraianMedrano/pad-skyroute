@@ -4,19 +4,12 @@ namespace SkyRoute.Infrastructure.Simulation;
 
 /// <summary>
 /// Great-circle helpers for moving simulated drones: distance, bearing, and intermediate points.
-/// Distances use the Haversine formula with the same Earth radius as the flight range rule
-/// (docs/architecture.md, "Flight rules"), so a simulated trip measures what the range check measured.
+/// Distances come from <see cref="GeoDistance"/>, so a simulated trip measures what the range check measured.
 /// </summary>
 public static class GeoMath
 {
-    private const double EarthRadiusKm = 6371;
-
-    /// <summary>
-    /// Great-circle distance in kilometers. Same formula as <c>GeoDistance.Kilometers</c> from #10;
-    /// switch to it once it is on main, so both sides share one implementation.
-    /// </summary>
-    public static double DistanceKm(Coordinates from, Coordinates to) =>
-        2 * EarthRadiusKm * Math.Asin(Math.Sqrt(Haversine(from, to)));
+    /// <summary>Great-circle distance in kilometers, the same one the range check uses (#10).</summary>
+    public static double DistanceKm(Coordinates from, Coordinates to) => GeoDistance.Kilometers(from, to);
 
     /// <summary>Initial bearing from <paramref name="from"/> to <paramref name="to"/>: 0 = north, 90 = east.</summary>
     public static double BearingDeg(Coordinates from, Coordinates to)
