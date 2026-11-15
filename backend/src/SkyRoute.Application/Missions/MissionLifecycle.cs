@@ -62,28 +62,35 @@ public sealed class FailMission(IMissionRepository missions, IDroneRepository dr
 
 internal static class MissionEnd
 {
-    // Saves the ended mission, frees its drone, and hands the drone to the oldest Paid mission in range.
-    // Everything is saved before the webhook is called, so a failed webhook never changes this state.
+    // Frees the ended mission's drone and hands it to the oldest Paid mission in range. Every change is
+    // applied before the first save: with EF Core both repositories share one DbContext per scope, so that
+    // save writes the ended mission, the drone, and the next mission in one transaction, and a failure never
+    // leaves a Busy drone without a mission. Everything is saved before the webhook is called, so a failed
+    // webhook never changes this state.
     public static async Task FreeDroneAsync(
         Mission ended, IMissionRepository missions, IDroneRepository drones, CancellationToken cancellationToken)
     {
-        await missions.UpdateAsync(ended, cancellationToken);
-
-        if (ended.AssignedDroneId is not { } droneId || await drones.GetAsync(droneId, cancellationToken) is not { } drone)
+        var drone = ended.AssignedDroneId is { } droneId ? await drones.GetAsync(droneId, cancellationToken) : null;
+        Mission? next = null;
+        if (drone is not null)
         {
-            return;
+            drone.MarkAvailable();
+            next = DroneAssignment.OldestPaidMissionInRange(await missions.ListAsync(cancellationToken), drone);
+            if (next is not null)
+            {
+                drone.MarkBusy();
+                next.Assign(drone.Id);
+            }
         }
 
-        drone.MarkAvailable();
-
-        var next = DroneAssignment.OldestPaidMissionInRange(await missions.ListAsync(cancellationToken), drone);
+        await missions.UpdateAsync(ended, cancellationToken);
         if (next is not null)
         {
-            drone.MarkBusy();
-            next.Assign(drone.Id);
             await missions.UpdateAsync(next, cancellationToken);
         }
-
-        await drones.UpdateAsync(drone, cancellationToken);
+        if (drone is not null)
+        {
+            await drones.UpdateAsync(drone, cancellationToken);
+        }
     }
 }
