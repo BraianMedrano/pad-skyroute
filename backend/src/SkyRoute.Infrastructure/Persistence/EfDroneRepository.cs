@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SkyRoute.Application;
 using SkyRoute.Application.Drones;
 using SkyRoute.Domain.Drones;
 
@@ -15,6 +16,13 @@ public sealed class EfDroneRepository(SkyRouteDbContext db) : IDroneRepository
     public async Task UpdateAsync(Drone drone, CancellationToken cancellationToken = default)
     {
         db.Drones.Update(drone);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new ConcurrentUpdateException($"Drone {drone.Id} was changed by someone else after it was read.", ex);
+        }
     }
 }

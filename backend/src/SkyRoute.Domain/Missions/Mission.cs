@@ -36,6 +36,8 @@ public sealed class Mission
     public double PackageWeightKg { get; }
     public string RecipientDni { get; }
     public decimal Price { get; private set; }
+    // The checkout link of the latest payment attempt; the mission stays Validated until it is paid.
+    public string? PaymentLinkId { get; private set; }
     public MissionStatus Status { get; private set; }
     public Guid? AssignedDroneId { get; private set; }
     public string? FailureReason { get; private set; }
@@ -48,6 +50,8 @@ public sealed class Mission
         MoveTo(MissionStatus.Requested, MissionStatus.Validated);
         Price = price;
     }
+
+    public void AttachPaymentLink(string paymentLinkId) => PaymentLinkId = paymentLinkId;
 
     public void MarkPaid() => MoveTo(MissionStatus.Validated, MissionStatus.Paid);
 
