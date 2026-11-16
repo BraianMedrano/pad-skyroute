@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SkyRoute.Application\SkyRoute.Application.csproj" />
+    <ProjectReference Include="..\..\src\SkyRoute.Infrastructure\SkyRoute.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

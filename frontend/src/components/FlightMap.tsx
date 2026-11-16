@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import type { StyleSpecification } from "maplibre-gl";
+import { useEffect, useRef, useState } from "react";
+import type { GeoJSONSource, Map as MapLibreMap, Marker, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import type { Coordinates } from "@/lib/api/client";
+import type { TelemetryMessage } from "@/lib/telemetry";
 
 // Plaza Independencia, San Miguel de Tucumán (lng, lat).
 const DEMO_CENTER: [number, number] = [-65.2039, -26.8305];
 const DEMO_ZOOM = 14;
+
+const ROUTES_SOURCE = "mission-routes";
 
 // OpenStreetMap raster tiles, inverted and desaturated to fit the dark theme.
 const MAP_STYLE: StyleSpecification = {
@@ -20,6 +24,7 @@ const MAP_STYLE: StyleSpecification = {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
+    [ROUTES_SOURCE]: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
   },
   layers: [
     { id: "background", type: "background", paint: { "background-color": "#07111c" } },
@@ -35,35 +40,120 @@ const MAP_STYLE: StyleSpecification = {
         "raster-opacity": 0.8,
       },
     },
+    {
+      id: "mission-routes",
+      type: "line",
+      source: ROUTES_SOURCE,
+      paint: { "line-color": "#f2a93b", "line-width": 2, "line-dasharray": [2, 2], "line-opacity": 0.8 },
+    },
   ],
 };
 
-export function FlightMap() {
+/** Origin and destination of the mission a drone is flying. */
+export type MissionRoute = {
+  missionId: string;
+  origin: Coordinates;
+  destination: Coordinates;
+};
+
+type FlightMapProps = {
+  drones?: TelemetryMessage[];
+  routes?: MissionRoute[];
+};
+
+/** Map of the demo area. Fills its parent, so it works inside the app layout or full screen. */
+export function FlightMap({ drones = [], routes = [] }: FlightMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const markerClassRef = useRef<typeof Marker>(undefined);
+  const markersRef = useRef<Record<string, Marker>>({});
+  const [map, setMap] = useState<MapLibreMap>();
 
   useEffect(() => {
-    let map: import("maplibre-gl").Map | undefined;
+    let instance: MapLibreMap | undefined;
     let cancelled = false;
 
     // MapLibre needs the browser, so it is loaded only on the client.
-    import("maplibre-gl").then(({ Map, setWorkerUrl }) => {
+    import("maplibre-gl").then(({ Map, Marker, setWorkerUrl }) => {
       if (cancelled || !containerRef.current) return;
       // MapLibre looks for its worker next to its own module, which the bundler moves,
       // so point it at the worker file the bundler emits.
       setWorkerUrl(new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).href);
-      map = new Map({
+      markerClassRef.current = Marker;
+      instance = new Map({
         container: containerRef.current,
         style: MAP_STYLE,
         center: DEMO_CENTER,
         zoom: DEMO_ZOOM,
       });
+      const loaded = instance;
+      loaded.on("load", () => setMap(loaded));
     });
 
     return () => {
       cancelled = true;
-      map?.remove();
+      instance?.remove();
+      markersRef.current = {};
+      // Forget the removed map, so markers are not attached to it after a Fast Refresh.
+      setMap(undefined);
     };
   }, []);
 
+  // One marker per drone, moved and rotated on every update.
+  useEffect(() => {
+    const MarkerClass = markerClassRef.current;
+    if (!map || !MarkerClass) return;
+
+    const markers = markersRef.current;
+    const seen = new Set<string>();
+    for (const drone of drones) {
+      seen.add(drone.droneId);
+      let marker = markers[drone.droneId];
+      if (!marker) {
+        // rotationAlignment "map" keeps the heading true to north when the map is rotated.
+        marker = new MarkerClass({ element: createDroneElement(), rotationAlignment: "map" })
+          .setLngLat([drone.lon, drone.lat])
+          .addTo(map);
+        markers[drone.droneId] = marker;
+      }
+      // The glyph points north, so the heading is the rotation as is.
+      marker.setLngLat([drone.lon, drone.lat]).setRotation(drone.headingDeg);
+      marker.getElement().dataset.status = drone.status;
+    }
+
+    for (const id of Object.keys(markers)) {
+      if (!seen.has(id)) {
+        markers[id].remove();
+        delete markers[id];
+      }
+    }
+  }, [map, drones]);
+
+  // Straight line from origin to destination for every drone on a mission.
+  useEffect(() => {
+    const source = map?.getSource<GeoJSONSource>(ROUTES_SOURCE);
+    source?.setData({
+      type: "FeatureCollection",
+      features: routes.map((route) => ({
+        type: "Feature",
+        properties: { missionId: route.missionId },
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [route.origin.lon, route.origin.lat],
+            [route.destination.lon, route.destination.lat],
+          ],
+        },
+      })),
+    });
+  }, [map, routes]);
+
   return <div ref={containerRef} className="h-full w-full" aria-label="Operations map" />;
+}
+
+function createDroneElement(): HTMLElement {
+  const element = document.createElement("div");
+  element.className = "drone-marker";
+  element.innerHTML =
+    '<svg viewBox="-12 -12 24 24" width="24" height="24" aria-hidden="true"><path d="M0,-10 L7,8 L0,4 L-7,8 Z"/></svg>';
+  return element;
 }

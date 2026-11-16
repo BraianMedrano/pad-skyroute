@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SkyRoute.Application;
 using SkyRoute.Application.Missions;
 using SkyRoute.Domain.Missions;
 
@@ -21,6 +22,13 @@ public sealed class EfMissionRepository(SkyRouteDbContext db) : IMissionReposito
     public async Task UpdateAsync(Mission mission, CancellationToken cancellationToken = default)
     {
         db.Missions.Update(mission);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new ConcurrentUpdateException($"Mission {mission.Id} was changed by someone else after it was read.", ex);
+        }
     }
 }

@@ -1,4 +1,4 @@
-import { FlightMap } from "@/components/FlightMap";
+import { LiveMap } from "@/components/LiveMap";
 
 export default function Home() {
   return (
@@ -19,7 +19,7 @@ export default function Home() {
         </aside>
 
         <section className="min-h-80 min-w-0">
-          <FlightMap />
+          <LiveMap />
         </section>
 
         <aside

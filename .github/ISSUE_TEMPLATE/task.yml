@@ -106,7 +106,7 @@ body:
     id: contract-impact
     attributes:
       label: Public API contract impact
-      description: The food delivery group consumes our OpenAPI contract.
+      description: The Padi wallet group (also our payment provider) consumes our OpenAPI contract.
       options:
         - None
         - Adds endpoints or fields only
