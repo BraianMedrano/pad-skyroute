@@ -64,3 +64,14 @@
 .maplibregl-map .maplibregl-ctrl-attrib-button {
   filter: invert(1);
 }
+
+/* Live drone markers: amber while flying, muted while available. */
+.drone-marker svg {
+  fill: var(--color-amber);
+  stroke: var(--color-bg);
+  stroke-width: 1.5;
+}
+
+.drone-marker[data-status="Available"] svg {
+  fill: var(--color-muted);
+}
