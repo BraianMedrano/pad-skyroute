@@ -63,6 +63,10 @@ builder.Services.AddCors(options =>
         .AllowCredentials()));
 builder.Services.AddSimulation<TelemetryHub>();
 builder.Services.AddPersistence(builder.Configuration);
+builder.Services.AddScoped<SkyRoute.Application.Missions.RequestMission>();
+builder.Services.AddScoped<SkyRoute.Application.Missions.PayMission>();
+builder.Services.AddScoped<SkyRoute.Application.Missions.ConfirmPayment>();
+builder.Services.AddHostedService<SkyRoute.Api.Payments.PaymentConfirmationService>();
 
 var app = builder.Build();
 

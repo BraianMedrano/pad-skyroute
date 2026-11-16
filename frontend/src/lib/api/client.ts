@@ -12,8 +12,8 @@ export type MissionRequest = Schemas["RequestMissionRequest"];
 export type PaymentResponse = Schemas["PaymentResponse"];
 export type ProblemDetails = Schemas["ProblemDetails"];
 
-// Host of the API; every route lives under /api.
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5113";
+// Host of the API; every route, including the SignalR hub, lives under /api.
+export const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5113";
 
 /** A non-2xx response. `message` carries the API's reason (ProblemDetails `detail`) when it sends one. */
 export class ApiError extends Error {
@@ -29,7 +29,7 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     // Only send a content type with a body, so plain GETs need no CORS preflight.
     headers: init.body ? { "Content-Type": "application/json" } : undefined,

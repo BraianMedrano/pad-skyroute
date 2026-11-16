@@ -20,11 +20,16 @@ public sealed class SkyRouteDbContext(DbContextOptions<SkyRouteDbContext> option
             mission.HasKey(m => m.Id);
             mission.Property(m => m.Id).ValueGeneratedNever();
             mission.Property(m => m.Type).HasConversion<string>();
-            mission.Property(m => m.Status).HasConversion<string>();
+            // Concurrency token: an UPDATE only applies if the status is still the one that was read (#33).
+            mission.Property(m => m.Status).HasConversion<string>().IsConcurrencyToken();
             mission.Property(m => m.PackageWeightKg);
             mission.Property(m => m.RecipientDni);
+            mission.Property(m => m.Price);
+            mission.Property(m => m.PaymentLinkId);
             mission.Property(m => m.AssignedDroneId);
             mission.Property(m => m.FailureReason);
+            mission.Property(m => m.CallbackUrl);
+            mission.Property(m => m.RequestedAt);
             mission.Property(m => m.Route).HasConversion(
                 route => $"{Format(route.Origin)};{Format(route.Destination)}",
                 text => ParseRoute(text));
@@ -36,7 +41,7 @@ public sealed class SkyRouteDbContext(DbContextOptions<SkyRouteDbContext> option
             drone.HasKey(d => d.Id);
             drone.Property(d => d.Id).ValueGeneratedNever();
             drone.Property(d => d.Name);
-            drone.Property(d => d.Status).HasConversion<string>();
+            drone.Property(d => d.Status).HasConversion<string>().IsConcurrencyToken();
             drone.Property(d => d.HomePosition).HasConversion(
                 position => Format(position),
                 text => ParseCoordinates(text));
