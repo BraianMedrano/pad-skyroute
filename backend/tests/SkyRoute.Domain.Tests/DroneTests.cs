@@ -26,4 +26,24 @@ public class DroneTests
         Assert.Throws<InvalidOperationException>(drone.MarkBusy);
         Assert.Equal(DroneStatus.Busy, drone.Status);
     }
+
+    [Fact]
+    public void A_busy_drone_becomes_available_again()
+    {
+        var drone = NewDrone();
+        drone.MarkBusy();
+
+        drone.MarkAvailable();
+
+        Assert.Equal(DroneStatus.Available, drone.Status);
+    }
+
+    [Fact]
+    public void An_available_drone_cannot_be_marked_available_again()
+    {
+        var drone = NewDrone();
+
+        Assert.Throws<InvalidOperationException>(drone.MarkAvailable);
+        Assert.Equal(DroneStatus.Available, drone.Status);
+    }
 }
