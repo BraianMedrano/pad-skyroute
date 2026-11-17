@@ -4,7 +4,7 @@ namespace SkyRoute.Infrastructure.Simulation;
 
 /// <summary>
 /// Sends telemetry to every client connected to the telemetry hub.
-/// Shared by the temporary fake drone loop and the real simulator (#13).
+/// Used by the drone simulator (#13).
 /// </summary>
 public sealed class TelemetryBroadcaster(IHubClients clients)
 {
