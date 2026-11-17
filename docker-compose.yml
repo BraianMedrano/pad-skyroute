@@ -4,7 +4,9 @@ services:
     ports:
       - "5113:8080"
     environment:
-      ConnectionStrings__SkyRoute: "Data Source=/app/data/skyroute.db"
+      # The SQLite file lives on the api-data volume so it survives rebuilds.
+      Database__Path: /app/data/skyroute.db
+      UseFakes: ${UseFakes:-true}
     volumes:
       - api-data:/app/data
 
