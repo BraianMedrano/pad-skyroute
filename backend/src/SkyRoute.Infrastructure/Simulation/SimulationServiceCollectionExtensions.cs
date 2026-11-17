@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
+using SkyRoute.Application.Missions;
 
 namespace SkyRoute.Infrastructure.Simulation;
 
@@ -18,7 +19,12 @@ public static class SimulationServiceCollectionExtensions
                 options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
         services.AddSingleton(sp => new TelemetryBroadcaster(sp.GetRequiredService<IHubContext<THub>>().Clients));
-        services.AddHostedService<FakeDroneLoop>();
+        services.AddSingleton<TelemetryStore>();
+        // Mission lifecycle use cases (#12): called only by the simulator, each one in its own scope.
+        services.AddScoped<StartMission>();
+        services.AddScoped<CompleteMission>();
+        services.AddScoped<FailMission>();
+        services.AddHostedService<DroneSimulator>();
 
         return services;
     }
