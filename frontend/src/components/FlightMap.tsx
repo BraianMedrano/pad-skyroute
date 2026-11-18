@@ -80,6 +80,8 @@ export function FlightMap({ drones = [], routes = [], selected, theme = "night",
   const containerRef = useRef<HTMLDivElement>(null);
   const markerClassRef = useRef<typeof Marker>(undefined);
   const markersRef = useRef<Record<string, Marker>>({});
+  // Pending animation frame per drone, so a new update replaces the running glide.
+  const framesRef = useRef<Record<string, number>>({});
   const draftMarkersRef = useRef<{ origin?: Marker; destination?: Marker }>({});
   const [map, setMap] = useState<MapLibreMap>();
 
@@ -106,6 +108,8 @@ export function FlightMap({ drones = [], routes = [], selected, theme = "night",
 
     return () => {
       cancelled = true;
+      for (const frame of Object.values(framesRef.current)) cancelAnimationFrame(frame);
+      framesRef.current = {};
       instance?.remove();
       markersRef.current = {};
       draftMarkersRef.current = {};
@@ -156,17 +160,20 @@ export function FlightMap({ drones = [], routes = [], selected, theme = "night",
         // rotationAlignment "map" keeps the heading true to north when the map is rotated.
         marker = new MarkerClass({ element: createDroneElement(), rotationAlignment: "map" })
           .setLngLat([drone.lon, drone.lat])
+          .setRotation(drone.headingDeg)
           .addTo(map);
         markers[drone.droneId] = marker;
       }
       // The glyph points north, so the heading is the rotation as is.
-      marker.setLngLat([drone.lon, drone.lat]).setRotation(drone.headingDeg);
+      glide(marker, drone, framesRef.current);
       marker.getElement().dataset.status = drone.status;
       marker.getElement().dataset.selected = String(drone.droneId === selected?.droneId);
     }
 
     for (const id of Object.keys(markers)) {
       if (!seen.has(id)) {
+        cancelAnimationFrame(framesRef.current[id] ?? 0);
+        delete framesRef.current[id];
         markers[id].remove();
         delete markers[id];
       }
@@ -262,6 +269,33 @@ export function FlightMap({ drones = [], routes = [], selected, theme = "night",
   }, [map, selectedMissionId, hasDrone]);
 
   return <div ref={containerRef} className={`h-full w-full ${picking ? "map-picking" : ""}`} aria-label={picking ? "Mapa; elegí un punto para la entrega" : "Mapa de operaciones"} />;
+}
+
+// Telemetry arrives about once per second, so each glide lasts about one update.
+const GLIDE_MS = 1000;
+
+/** Slides a drone marker to its new telemetry point and heading instead of jumping there. */
+function glide(marker: Marker, drone: TelemetryMessage, frames: Record<string, number>) {
+  cancelAnimationFrame(frames[drone.droneId] ?? 0);
+  const from = marker.getLngLat();
+  const fromHeading = marker.getRotation();
+  // Turn the short way round: from 350° to 10° is +20°, not -340°.
+  const turn = ((((drone.headingDeg - fromHeading) % 360) + 540) % 360) - 180;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    marker.setLngLat([drone.lon, drone.lat]).setRotation(drone.headingDeg);
+    return;
+  }
+
+  const start = performance.now();
+  const step = (now: number) => {
+    const t = Math.min(1, (now - start) / GLIDE_MS);
+    marker
+      .setLngLat([from.lng + (drone.lon - from.lng) * t, from.lat + (drone.lat - from.lat) * t])
+      .setRotation(fromHeading + turn * t);
+    if (t < 1) frames[drone.droneId] = requestAnimationFrame(step);
+    else delete frames[drone.droneId];
+  };
+  frames[drone.droneId] = requestAnimationFrame(step);
 }
 
 function createDroneElement(): HTMLElement {
