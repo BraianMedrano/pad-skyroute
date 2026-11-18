@@ -72,7 +72,7 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange, mode = "all
   const [destinationLat, setDestinationLat] = useState("");
   const [destinationLon, setDestinationLon] = useState("");
   const [weight, setWeight] = useState("1.5");
-  const [dni, setDni] = useState("12345678");
+  const [dni, setDni] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
 
@@ -209,7 +209,7 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange, mode = "all
         <ul className="flex flex-col gap-2">
           {/* The API lists in creation order; show the newest first. */}
           {missions?.toReversed().map((mission) => {
-            const note = payNotes[mission.id];
+            const note = mission.status === "Validated" ? payNotes[mission.id] : undefined;
             const selected = mission.id === selectedId;
             return (
               <li key={mission.id} className={`border bg-panel-2 p-2.5 ${selected ? "border-amber" : "border-line"}`}>
@@ -229,9 +229,9 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange, mode = "all
                 </button>
                 <div className="mt-1.5 flex flex-col items-start gap-1.5">
                   <span className="font-mono text-xs text-muted">{priceFormat.format(mission.price)}</span>
-                  {mission.status === "Validated" && !note && (
+                  {mission.status === "Validated" && (
                     <>
-                    <p className="text-xs text-muted">Padi se abrirá en otra pestaña; puede pedirte que inicies sesión.</p>
+                    {!note && <p className="text-xs text-muted">Padi se abrirá en otra pestaña; puede pedirte que inicies sesión.</p>}
                     <button
                       type="button"
                       onClick={() => void pay(mission.id)}
