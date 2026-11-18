@@ -7,6 +7,12 @@ services:
       # The SQLite file lives on the api-data volume so it survives rebuilds.
       Database__Path: /app/data/skyroute.db
       UseFakes: ${UseFakes:-true}
+      # Real integrations (UseFakes=false) read these; Fakes ignore them.
+      Renaper__BaseUrl: ${Renaper__BaseUrl:-https://api-openrenaper.matiasagustinibanez.com}
+      Padi__ApiKey: ${Padi__ApiKey:-}
+      Padi__BaseUrl: ${Padi__BaseUrl:-https://padi.runasp.net}
+      Weather__MaxWindSpeedKmh: ${Weather__MaxWindSpeedKmh:-30}
+      Weather__MaxPrecipitationMm: ${Weather__MaxPrecipitationMm:-0}
     volumes:
       - api-data:/app/data
 
