@@ -1,7 +1,19 @@
+"use client";
+
+import { useState } from "react";
 import { FleetPanel } from "@/components/FleetPanel";
 import { LiveMap } from "@/components/LiveMap";
+import { MissionDetails } from "@/components/MissionDetails";
+import type { Mission } from "@/lib/api/client";
+import type { TelemetryMessage } from "@/lib/telemetry";
 
 export default function Home() {
+  // The selection, the polled missions and the live drones are shared by the three panels.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [missions, setMissions] = useState<Mission[] | null>(null);
+  const [drones, setDrones] = useState<Record<string, TelemetryMessage>>({});
+  const selected = missions?.find((mission) => mission.id === selectedId);
+
   return (
     <div className="grid h-dvh grid-rows-[auto_minmax(0,1fr)]">
       <header className="flex items-center gap-x-6 border-b border-line bg-panel px-[18px] py-3">
@@ -17,11 +29,11 @@ export default function Home() {
           className="max-h-[45dvh] overflow-y-auto border-b border-line bg-panel p-3.5 min-[960px]:max-h-none min-[960px]:border-r min-[960px]:border-b-0"
         >
           <span className="label">Fleet</span>
-          <FleetPanel />
+          <FleetPanel selectedId={selectedId} onSelect={setSelectedId} onMissionsChange={setMissions} />
         </aside>
 
         <section className="min-h-80 min-w-0">
-          <LiveMap />
+          <LiveMap selectedMission={selected} onDronesChange={setDrones} />
         </section>
 
         <aside
@@ -29,6 +41,7 @@ export default function Home() {
           className="border-t border-line bg-panel p-4 min-[960px]:border-t-0 min-[960px]:border-l"
         >
           <span className="label">Details</span>
+          <MissionDetails mission={selected} drones={drones} />
         </aside>
       </main>
     </div>

@@ -47,8 +47,15 @@ function parseHttpUrl(value: string): URL | undefined {
   }
 }
 
+type FleetPanelProps = {
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
+  /** Called with every refreshed list, so other panels can show the same missions. */
+  onMissionsChange?: (missions: Mission[]) => void;
+};
+
 /** Fleet panel: request a delivery, and follow every mission (polled) with its price and a Pay button. */
-export function FleetPanel() {
+export function FleetPanel({ selectedId, onSelect, onMissionsChange }: FleetPanelProps = {}) {
   const [missions, setMissions] = useState<Mission[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const loading = useRef(false);
@@ -69,14 +76,16 @@ export function FleetPanel() {
     if (loading.current) return;
     loading.current = true;
     try {
-      setMissions(await api.listMissions());
+      const list = await api.listMissions();
+      setMissions(list);
+      onMissionsChange?.(list);
       setListFailed(false);
     } catch {
       setListFailed(true);
     } finally {
       loading.current = false;
     }
-  }, []);
+  }, [onMissionsChange]);
 
   useEffect(() => {
     void refresh();
@@ -184,16 +193,23 @@ export function FleetPanel() {
           {/* The API lists in creation order; show the newest first. */}
           {missions?.toReversed().map((mission) => {
             const note = mission.status === "Validated" ? payNotes[mission.id] : undefined;
+            const selected = mission.id === selectedId;
             return (
-              <li key={mission.id} className="border border-line bg-panel-2 p-2.5">
-                <div className="flex items-center justify-between gap-2">
+              <li key={mission.id} className={`border bg-panel-2 p-2.5 ${selected ? "border-amber" : "border-line"}`}>
+                <button
+                  type="button"
+                  onClick={() => onSelect?.(mission.id)}
+                  aria-pressed={selected}
+                  aria-label={`Select mission ${mission.id.slice(0, 8)}`}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
                   <span className="font-mono text-xs" title={mission.id}>
                     #{mission.id.slice(0, 8)}
                   </span>
                   <span className={`font-display text-[13px] font-semibold tracking-[0.12em] uppercase ${statusColor[mission.status]}`}>
                     {mission.status}
                   </span>
-                </div>
+                </button>
                 <div className="mt-1.5 flex items-center justify-between gap-2">
                   <span className="font-mono text-xs text-muted">{priceFormat.format(mission.price)}</span>
                   {mission.status === "Validated" && (

@@ -75,3 +75,9 @@
 .drone-marker[data-status="Available"] svg {
   fill: var(--color-muted);
 }
+
+/* The drone of the selected mission is cyan and slightly larger. */
+.drone-marker[data-selected="true"] svg {
+  fill: var(--color-cyan);
+  transform: scale(1.3);
+}

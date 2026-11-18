@@ -5,8 +5,15 @@ import { api, apiBaseUrl, type Mission } from "@/lib/api/client";
 import { connectTelemetry, type TelemetryMessage } from "@/lib/telemetry";
 import { FlightMap, type MissionRoute } from "./FlightMap";
 
+type LiveMapProps = {
+  /** Mission to focus: its route is highlighted and the map frames it with its drone. */
+  selectedMission?: Mission;
+  /** Called with the live drones on every update, so other panels reuse this connection. */
+  onDronesChange?: (drones: Record<string, TelemetryMessage>) => void;
+};
+
 /** Live map: drones from the telemetry hub, and the route of each mission being flown. */
-export function LiveMap() {
+export function LiveMap({ selectedMission, onDronesChange }: LiveMapProps = {}) {
   const [drones, setDrones] = useState<Record<string, TelemetryMessage>>({});
   const [missions, setMissions] = useState<Record<string, Mission>>({});
   const requestedMissions = useRef(new Set<string>());
@@ -18,6 +25,8 @@ export function LiveMap() {
       ),
     [],
   );
+
+  useEffect(() => onDronesChange?.(drones), [drones, onDronesChange]);
 
   // Telemetry only carries the mission id, so fetch each mission once for its route.
   useEffect(() => {
@@ -43,5 +52,16 @@ export function LiveMap() {
     [droneList, missions],
   );
 
-  return <FlightMap drones={droneList} routes={routes} />;
+  const selected = useMemo(
+    () =>
+      selectedMission
+        ? {
+            route: { missionId: selectedMission.id, origin: selectedMission.origin, destination: selectedMission.destination },
+            droneId: selectedMission.assignedDroneId,
+          }
+        : undefined,
+    [selectedMission],
+  );
+
+  return <FlightMap drones={droneList} routes={routes} selected={selected} />;
 }
