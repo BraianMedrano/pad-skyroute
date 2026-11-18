@@ -8,7 +8,7 @@
 | `false` | Real RENAPER identity, Open-Meteo weather and Padi payment clients. All use `AddStandardResilienceHandler()`; Padi POST retries are disabled. The HTTP webhook notifier is registered too. |
 | Missing or invalid | No integrations are registered. |
 
-In real mode `AddIntegrations` also registers `HttpWebhookNotifier`, because the mission completion and failure use cases require `IWebhookNotifier`. It only posts to loopback `callbackUrl` destinations and skips any other callback with a warning.
+In real mode `AddIntegrations` also registers `HttpWebhookNotifier`, because the mission completion and failure use cases require `IWebhookNotifier`. The API is public and unauthenticated, so the notifier posts only when a mission's `callbackUrl` is exactly `Webhook__ReceiverUrl` (an absolute HTTP(S) URL without credentials, set by the operator). Any other callback is skipped with a warning. When `Webhook__ReceiverUrl` is unset, no webhook is delivered. Compose does not forward it, so the VPS delivers none; for a local test, set it to your controlled receiver, for example `http://127.0.0.1:9000/hook`.
 
 ## Identity (#19)
 
@@ -72,7 +72,7 @@ Unsafe weather returns the business rejection reason (422 through the request us
 
 ## Real-mode composition limits
 
-Real mode registers every port with a real implementation, including the loopback-only webhook notifier, so the API starts with `UseFakes=false`. This composition does not add a Fake fallback.
+Real mode registers every port with a real implementation, including the webhook notifier restricted to `Webhook__ReceiverUrl`, so the API starts with `UseFakes=false`. This composition does not add a Fake fallback.
 
 ## Live verification (2026-11-18)
 
