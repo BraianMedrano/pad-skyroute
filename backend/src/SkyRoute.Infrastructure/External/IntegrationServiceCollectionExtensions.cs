@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 using SkyRoute.Application.External;
 
 namespace SkyRoute.Infrastructure.External;
@@ -25,6 +26,20 @@ public static class IntegrationServiceCollectionExtensions
         services.AddSingleton<IWeatherService, FakeWeatherService>();
         services.AddSingleton<IPaymentGateway, FakePaymentGateway>();
         services.AddSingleton<IWebhookNotifier, FakeWebhookNotifier>();
+        return services;
+    }
+
+    // Call after AddIntegrations only in a local composition with a controlled receiver.
+    public static IServiceCollection AddLocalHttpWebhookNotifier(this IServiceCollection services)
+    {
+        services.AddOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>();
+        services.AddHttpClient<IWebhookNotifier, HttpWebhookNotifier>()
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                UseProxy = false,
+            })
+            .AddStandardResilienceHandler(options => options.Retry.DisableFor(HttpMethod.Post));
         return services;
     }
 }
