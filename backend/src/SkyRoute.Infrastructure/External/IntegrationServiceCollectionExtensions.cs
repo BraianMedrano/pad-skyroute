@@ -9,8 +9,16 @@ public static class IntegrationServiceCollectionExtensions
 {
     public static IServiceCollection AddIntegrations(this IServiceCollection services, IConfiguration configuration)
     {
-        if (!bool.TryParse(configuration["UseFakes"], out var useFakes) || !useFakes)
+        if (!bool.TryParse(configuration["UseFakes"], out var useFakes))
         {
+            return services;
+        }
+
+        if (!useFakes)
+        {
+            // Weather only until the other real adapters land; never silently substitute Fakes.
+            services.AddHttpClient<IWeatherService, OpenMeteoWeatherService>()
+                .AddStandardResilienceHandler();
             return services;
         }
 
