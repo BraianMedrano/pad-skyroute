@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 using SkyRoute.Application.External;
 using SkyRoute.Domain.Missions;
 
@@ -31,38 +33,60 @@ public sealed class PadiPaymentGateway(HttpClient httpClient, IConfiguration con
         using var content = new ByteArrayContent(body);
         content.Headers.ContentLength = body.LongLength;
         content.Headers.ContentType = jsonContent.Headers.ContentType;
-        using var response = await httpClient.PostAsync(
-            "api/v1/integrations/payment-links",
-            content,
-            cancellationToken);
-        response.EnsureSuccessStatusCode();
-        if (response.StatusCode != System.Net.HttpStatusCode.Created)
+        try
         {
-            throw InvalidResponse("Padi did not confirm payment link creation with HTTP 201.");
-        }
+            using var response = await httpClient.PostAsync(
+                "api/v1/integrations/payment-links",
+                content,
+                cancellationToken);
+            response.EnsureSuccessStatusCode();
+            if (response.StatusCode != System.Net.HttpStatusCode.Created)
+            {
+                throw InvalidResponse("Padi did not confirm payment link creation with HTTP 201.");
+            }
 
-        var result = await ReadRequiredJsonAsync<CreatePaymentLinkResponse>(response, cancellationToken);
-        var id = RequireText(result.Id, "payment link id");
-        if (result.Amount is null || result.Amount.Value != amount)
-        {
-            throw InvalidResponse("Padi returned a payment link with an unexpected amount.");
-        }
-        if (!string.Equals(result.Currency, Currency, StringComparison.Ordinal))
-        {
-            throw InvalidResponse("Padi returned a payment link with an unexpected currency.");
-        }
-        if (!Uri.TryCreate(result.CheckoutUrl, UriKind.Absolute, out var checkoutUrl) ||
-            checkoutUrl.Scheme != Uri.UriSchemeHttps ||
-            !string.IsNullOrEmpty(checkoutUrl.UserInfo))
-        {
-            throw InvalidResponse("Padi returned an unusable checkout URL.");
-        }
-        if (result.ExpiresAt is null)
-        {
-            throw InvalidResponse("Padi returned a payment link without an expiry time.");
-        }
+            var result = await ReadRequiredJsonAsync<CreatePaymentLinkResponse>(response, cancellationToken);
+            var id = RequireText(result.Id, "payment link id");
+            if (result.Amount is null || result.Amount.Value != amount)
+            {
+                throw InvalidResponse("Padi returned a payment link with an unexpected amount.");
+            }
+            if (!string.Equals(result.Currency, Currency, StringComparison.Ordinal))
+            {
+                throw InvalidResponse("Padi returned a payment link with an unexpected currency.");
+            }
+            if (!Uri.TryCreate(result.CheckoutUrl, UriKind.Absolute, out var checkoutUrl) ||
+                checkoutUrl.Scheme != Uri.UriSchemeHttps ||
+                !string.IsNullOrEmpty(checkoutUrl.UserInfo))
+            {
+                throw InvalidResponse("Padi returned an unusable checkout URL.");
+            }
+            if (result.ExpiresAt is null)
+            {
+                throw InvalidResponse("Padi returned a payment link without an expiry time.");
+            }
 
-        return new PaymentLink(id, result.Amount.Value, checkoutUrl, result.ExpiresAt.Value);
+            return new PaymentLink(id, result.Amount.Value, checkoutUrl, result.ExpiresAt.Value);
+        }
+        catch (HttpRequestException exception) when (
+            !cancellationToken.IsCancellationRequested &&
+            (exception.StatusCode is null || (int)exception.StatusCode >= 500 || exception.InnerException is TimeoutException))
+        {
+            throw new ExternalServiceUnavailableException("Padi", exception);
+        }
+        catch (TimeoutRejectedException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new ExternalServiceUnavailableException("Padi", exception);
+        }
+        catch (BrokenCircuitException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new ExternalServiceUnavailableException("Padi", exception);
+        }
+        catch (TaskCanceledException exception) when (
+            !cancellationToken.IsCancellationRequested && exception.InnerException is TimeoutException)
+        {
+            throw new ExternalServiceUnavailableException("Padi", exception);
+        }
     }
 
     public async Task<PaymentStatus> GetPaymentStatusAsync(
@@ -93,19 +117,19 @@ public sealed class PadiPaymentGateway(HttpClient httpClient, IConfiguration con
 
         foreach (var payment in payments)
         {
-            if (payment is null)
-            {
-                throw InvalidResponse("Padi returned an invalid received payment entry.");
-            }
-            var listedId = RequireText(payment.Id, "received payment id");
-            var listedLinkId = RequireText(payment.PaymentLinkId, "received payment link id");
-            var listedStatus = ParseReceivedPaymentStatus(payment.Status);
-            if (!string.Equals(listedLinkId, paymentLinkId, StringComparison.Ordinal) ||
-                listedStatus != ReceivedPaymentStatus.Succeeded)
+            if (payment is null ||
+                !string.Equals(payment.PaymentLinkId, paymentLinkId, StringComparison.Ordinal))
             {
                 continue;
             }
 
+            var listedStatus = ParseReceivedPaymentStatus(payment.Status);
+            if (listedStatus != ReceivedPaymentStatus.Succeeded)
+            {
+                continue;
+            }
+
+            var listedId = RequireText(payment.Id, "received payment id");
             using var paymentResponse = await httpClient.GetAsync(
                 $"api/v1/integrations/received-payments/{Uri.EscapeDataString(listedId)}",
                 cancellationToken);

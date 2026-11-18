@@ -12,6 +12,8 @@ S6. "si y documentá el motivo por el cual se hizo la excepcion"
 S7. "si" (explicit authorization of the single manual academic adapter probe quoted in L9; no endpoints or test suite).
 S8. "si. y me acabo de fijar en la app de padi, en la seccion de cobros y me sale \"pedido 1042\" con un importe de 1500 ars activo"; "continua". Authorizes the additional diagnostic adapter attempt proposed immediately before this confirmation.
 
+S9. "fijate la review de lucas, verificá e implementá las correcciones sugeridas, luego hacé un commit y mencionalo en un comentario para que vuelva a revisar la PR".
+
 ## Tasks
 T1 | S3,S6 | inline | done | branch from origin/main6437126; authorized exception comment6781231639; evidence commit52d2b0f.
 T2 | S1,S2,S4,S5,S6 | delegated worker | done | adapter/configuration/README/resilience10.0.0; final build/test passed; commit52d2b0f. Risk: item 5 (dependency addition), item 2 (server-side API key handling).
@@ -31,7 +33,11 @@ T10 | S1,S4,S5 | inline | done | earlier push and draft PR #45 verified at head 
 T11 | S1,S2,S4,S5 | inline | done | README and tracking reconcile live evidence. Build, tests (45 Domain passed; Application.Tests empty), and diff-check exited 0. Documentation only; no new POSTs.
 T12 | S4,S5 | human + parent | blocked | waits for human safe `.env.example` edit and explicit authorization to publish the update to #20/PR #45. Combined mission flow not observed; verify it or have issue owner record it as pending. PR remains draft; teammate approval still required.
 
+T13 | S9,S1,S4 | delegated worker | done | scoped review fixes: create maps availability failures to existing 503, list filters unrelated entries first, README explains Compose. Build zero warnings/errors, 88 existing tests pass (63 Domain, 25 Application), diff-check clean. Independent source review accepted, risk item 6; no direct adapter regression suite or live calls.
+T14 | S9,S5 | inline | blocked | commit review fixes locally; ask for explicit push authorization before the re-review comment so Lucas sees the evaluated commit. Keep draft. `.env.example` comment requires manual edit; #49/#50 composition remains a merge-order coordination task.
+
 ## Log
+L31. Lucas reviewed PR #45 at 4910d7d, https://github.com/BraianMedrano/pad-skyroute/pull/45#pullrequestreview-5950665292. Local branch fast-forwarded from df9a3d1 to the reviewed remote head. Findings: 503 instead of 500 for provider availability only; match payment link before validating other fields; upcoming #49/#50 merges must compose registrations (both still open); Compose forwards UseFakes but not Padi__*. The guard forbids editing .env.example, so ask for the exact manual comment correction, also correct README if useful. Keep live adapter evidence distinct from integrated simulator evidence. No new POST, push, or merge under this request without explicit authorization.
 L30. User requested finishing the issue using the recent manual evidence. After converting local `.env` to LF and reloading Bash configuration, `check-config` passed. At 2026-11-18T01:23:04.6365729+00:00, the real adapter created a single ARS 1500 link; `Link created` follows HTTP 201 and response validation (amount, currency, HTTPS checkout URL, expiry). The human reported `Payment status: Pending`, and after academic payment the same link returned `Payment status: Paid`. No new POST required. This exercises the adapter, not the integrated mission flow. GitHub #11 is closed as completed and ConfirmPayment in the local origin/main reference calls GetPaymentStatusAsync and MarkPaid, but the combined flow was not exercised in this check. PR #45 remains open, draft and without formal reviews at 6ccef5c. The tracked `.env.example` read was blocked and must be updated manually; no bypass. Historical 400 cause remains unconfirmed.
 L1. Original user request (verbatim):
 Quiero continuar con la planificación e implementación de la issue #20 de
