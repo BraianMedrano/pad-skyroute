@@ -19,7 +19,7 @@ T3 | S1-S6 | independent verify + parent | done | independent S1-S6 accepted aft
 
 T4 | S7,S4 | worker + parent | done | reopened preparation fixed: IConfiguration registered, resolution moved before reservation. Offline synthetic check-config RED exit1(job-3), GREEN exit0(job-4); no requests, production adapter unchanged. Risk: item 2 (local API key).
 T6 | S7,S4 | independent verify + parent | done | source review accepted: config resolution before reservation, check-config no HTTP/marker access; parent GREEN0. Verifier isolated --no-build unavailable (no cached executable), not retried; marker hash unchanged, diff-check0. Live proof still blocked.
-T5 | S7,S8,S4 | human local execution | blocked | human verify-create returned known length true but same HTML400. Known length alone does not resolve rejection. All live attempts exhausted; preserve markers. Waits for provider-side diagnostic evidence before more changes/POSTs; curl minimal201 is only successful creation.
+T5 | S7,S8,S4 | human local execution | done | on 2026-11-18 the real .NET adapter created an academic link (HTTP 201); status of the same link was Pending before payment and Paid after payment. Historical HTML 400 root cause unknown. Mission transition via #11 was not exercised.
 
 T7 | S8,S4 | delegated worker + independent verify | done | diagnose-create ready with separate CreateNew marker, bounded safe error capture and unchanged adapter request. Independent review accepted after metadata categorization correction. Final parent job5 build/self-check/diff-check exit0. No live agent calls.
 
@@ -27,9 +27,12 @@ T8 | S1,S4,S8 | delegated worker + parent | done | manual public-interface trans
 
 T9 | S1,S4,S8 | delegated worker + parent | done | verify-create accepts one post-fix attempt using separate transport marker and existing safe diagnostics. RED unknowncommand2; recognized with synthetic invalid config exits1 before marker/network. Worker build and both offline self-checks passed; parent help/diff-check0. No provider call.
 
-T10 | S1,S4,S5 | inline | in_progress | user explicitly authorized push, issue coordination and DRAFT PR only; publish committed source/docs, exclude .env*, .engram and temporary probes. Verify remote draft/head and report unresolved live400. No merge.
+T10 | S1,S4,S5 | inline | done | earlier push and draft PR #45 verified at head 6ccef5c; #20 coordination comment 6804307463. No merge.
+T11 | S1,S2,S4,S5 | inline | done | README and tracking reconcile live evidence. Build, tests (45 Domain passed; Application.Tests empty), and diff-check exited 0. Documentation only; no new POSTs.
+T12 | S4,S5 | human + parent | blocked | waits for human safe `.env.example` edit and explicit authorization to publish the update to #20/PR #45. Combined mission flow not observed; verify it or have issue owner record it as pending. PR remains draft; teammate approval still required.
 
 ## Log
+L30. User requested finishing the issue using the recent manual evidence. After converting local `.env` to LF and reloading Bash configuration, `check-config` passed. At 2026-11-18T01:23:04.6365729+00:00, the real adapter created a single ARS 1500 link; `Link created` follows HTTP 201 and response validation (amount, currency, HTTPS checkout URL, expiry). The human reported `Payment status: Pending`, and after academic payment the same link returned `Payment status: Paid`. No new POST required. This exercises the adapter, not the integrated mission flow. GitHub #11 is closed as completed and ConfirmPayment in the local origin/main reference calls GetPaymentStatusAsync and MarkPaid, but the combined flow was not exercised in this check. PR #45 remains open, draft and without formal reviews at 6ccef5c. The tracked `.env.example` read was blocked and must be updated manually; no bypass. Historical 400 cause remains unconfirmed.
 L1. Original user request (verbatim):
 Quiero continuar con la planificación e implementación de la issue #20 de
  BraianMedrano/pad-skyroute: Padi payment adapter (async).
