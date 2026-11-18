@@ -52,17 +52,29 @@ const MAP_STYLE: StyleSpecification = {
       id: "selected-route",
       type: "line",
       source: SELECTED_SOURCE,
-      paint: { "line-color": "#4fc3d6", "line-width": 3 },
+      // One color per leg: to the origin (pickup), the delivery itself, and the return to base.
+      paint: {
+        "line-color": ["match", ["get", "leg"], "pickup", "#f2a93b", "return", "#8a9bb0", "#4fc3d6"],
+        "line-width": ["match", ["get", "leg"], "delivery", 4, 3],
+        "line-opacity": ["match", ["get", "leg"], "return", 0.6, 1],
+      },
     },
   ],
 };
 
-/** Origin and destination of the mission a drone is flying. */
+/** Origin and destination of the mission a drone is flying, plus its drone's base when known. */
 export type MissionRoute = {
   missionId: string;
   origin: Coordinates;
   destination: Coordinates;
+  base?: Coordinates;
 };
+
+/** Full trip as flown: base → origin → destination → base, or origin → destination without a base. */
+function routeCoordinates(route: MissionRoute): [number, number][] {
+  const legs = route.base ? [route.base, route.origin, route.destination, route.base] : [route.origin, route.destination];
+  return legs.map((point) => [point.lon, point.lat]);
+}
 
 type FlightMapProps = {
   drones?: TelemetryMessage[];
@@ -70,13 +82,15 @@ type FlightMapProps = {
   /** Mission to focus: its route is highlighted and framed together with its drone. */
   selected?: { route: MissionRoute; droneId: string | null };
   theme?: "day" | "night";
+  /** Drone bases, drawn as helipads all the time. */
+  bases?: Coordinates[];
   picking?: boolean;
   origin?: Coordinates;
   destination?: Coordinates;
 };
 
 /** Map of the demo area. Fills its parent, so it works inside the app layout or full screen. */
-export function FlightMap({ drones = [], routes = [], selected, theme = "night", picking = false, origin, destination }: FlightMapProps) {
+export function FlightMap({ drones = [], bases = [], routes = [], selected, theme = "night", picking = false, origin, destination }: FlightMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const markerClassRef = useRef<typeof Marker>(undefined);
   const markersRef = useRef<Record<string, Marker>>({});
@@ -191,12 +205,13 @@ export function FlightMap({ drones = [], routes = [], selected, theme = "night",
         const element = document.createElement("span");
         element.className = `draft-point draft-point-${endpoint}`;
         element.setAttribute("aria-label", endpoint === "origin" ? "Origen seleccionado" : "Destino seleccionado");
+        element.dataset.label = endpoint === "origin" ? "Origen" : "Destino";
         draftMarkersRef.current[endpoint] = new MarkerClass({ element, color: endpoint === "origin" ? "#f2a93b" : "#4fc3d6" }).setLngLat([point.lon, point.lat]).addTo(map);
       } else current.setLngLat([point.lon, point.lat]);
     }
   }, [map, origin, destination]);
 
-  // Straight line from origin to destination for every drone on a mission.
+  // Full trip line for every drone on a mission.
   useEffect(() => {
     const source = map?.getSource<GeoJSONSource>(ROUTES_SOURCE);
     source?.setData({
@@ -206,10 +221,7 @@ export function FlightMap({ drones = [], routes = [], selected, theme = "night",
         properties: { missionId: route.missionId },
         geometry: {
           type: "LineString",
-          coordinates: [
-            [route.origin.lon, route.origin.lat],
-            [route.destination.lon, route.destination.lat],
-          ],
+          coordinates: routeCoordinates(route),
         },
       })),
     });
@@ -226,25 +238,47 @@ export function FlightMap({ drones = [], routes = [], selected, theme = "night",
   const routeRef = useRef(selectedRoute);
   routeRef.current = selectedRoute;
 
+  // Helipad marker per base; the base of the selected mission is highlighted.
+  const baseMarkersRef = useRef<Marker[]>([]);
+  useEffect(() => {
+    const MarkerClass = markerClassRef.current;
+    for (const marker of baseMarkersRef.current) marker.remove();
+    baseMarkersRef.current = [];
+    if (!map || !MarkerClass) return;
+    baseMarkersRef.current = bases.map((base) =>
+      new MarkerClass({ element: createBaseElement(base) }).setLngLat([base.lon, base.lat]).addTo(map),
+    );
+  }, [map, bases]);
+
+  useEffect(() => {
+    const active = selectedRoute?.base;
+    for (const marker of baseMarkersRef.current) {
+      const { lng, lat } = marker.getLngLat();
+      marker.getElement().dataset.selected = String(active !== undefined && active.lat === lat && active.lon === lng);
+    }
+  }, [bases, selectedRoute]);
+
+  // Origin and destination of the selected mission, each with a hover label.
+  const routePointsRef = useRef<Marker[]>([]);
+  useEffect(() => {
+    const MarkerClass = markerClassRef.current;
+    for (const marker of routePointsRef.current) marker.remove();
+    routePointsRef.current = [];
+    if (!map || !MarkerClass || !selectedRoute) return;
+    const points = [
+      { kind: "origin", label: "Origen", point: selectedRoute.origin },
+      { kind: "destination", label: "Destino", point: selectedRoute.destination },
+    ];
+    routePointsRef.current = points.map(({ kind, label, point }) =>
+      new MarkerClass({ element: createRoutePointElement(kind, label, point) }).setLngLat([point.lon, point.lat]).addTo(map),
+    );
+  }, [map, selectedRoute]);
+
   useEffect(() => {
     const source = map?.getSource<GeoJSONSource>(SELECTED_SOURCE);
     source?.setData({
       type: "FeatureCollection",
-      features: selectedRoute
-        ? [
-            {
-              type: "Feature",
-              properties: {},
-              geometry: {
-                type: "LineString",
-                coordinates: [
-                  [selectedRoute.origin.lon, selectedRoute.origin.lat],
-                  [selectedRoute.destination.lon, selectedRoute.destination.lat],
-                ],
-              },
-            },
-          ]
-        : [],
+      features: selectedRoute ? routeLegs(selectedRoute) : [],
     });
   }, [map, selectedRoute]);
 
@@ -268,7 +302,13 @@ export function FlightMap({ drones = [], routes = [], selected, theme = "night",
     );
   }, [map, selectedMissionId, hasDrone]);
 
-  return <div ref={containerRef} className={`h-full w-full ${picking ? "map-picking" : ""}`} aria-label={picking ? "Mapa; elegí un punto para la entrega" : "Mapa de operaciones"} />;
+  // The picking class lives on a wrapper: React rewrites className on change, which would drop
+  // the classes MapLibre adds to its container and leave the canvas out of place.
+  return (
+    <div className={`h-full w-full ${picking ? "map-picking" : ""}`}>
+      <div ref={containerRef} className="h-full w-full" aria-label={picking ? "Mapa; elegí un punto para la entrega" : "Mapa de operaciones"} />
+    </div>
+  );
 }
 
 // Telemetry arrives about once per second, so each glide lasts about one update.
@@ -296,6 +336,45 @@ function glide(marker: Marker, drone: TelemetryMessage, frames: Record<string, n
     else delete frames[drone.droneId];
   };
   frames[drone.droneId] = requestAnimationFrame(step);
+}
+
+type LegFeature = {
+  type: "Feature";
+  properties: { leg: string };
+  geometry: { type: "LineString"; coordinates: [number, number][] };
+};
+
+/** The selected trip split into legs, so each one can be drawn in its own color. */
+function routeLegs(route: MissionRoute): LegFeature[] {
+  const line = (leg: string, from: Coordinates, to: Coordinates): LegFeature => ({
+    type: "Feature",
+    properties: { leg },
+    geometry: { type: "LineString", coordinates: [[from.lon, from.lat], [to.lon, to.lat]] },
+  });
+  const delivery = line("delivery", route.origin, route.destination);
+  return route.base
+    ? [line("pickup", route.base, route.origin), delivery, line("return", route.destination, route.base)]
+    : [delivery];
+}
+
+function createBaseElement(point: Coordinates): HTMLElement {
+  const element = document.createElement("span");
+  element.className = "base-marker";
+  element.textContent = "H";
+  element.dataset.label = `Base · ${point.lat.toFixed(4)}, ${point.lon.toFixed(4)}`;
+  element.setAttribute("aria-label", element.dataset.label);
+  element.setAttribute("role", "img");
+  return element;
+}
+
+function createRoutePointElement(kind: string, label: string, point: Coordinates): HTMLElement {
+  const element = document.createElement("span");
+  element.className = `route-point route-point-${kind}`;
+  // Shown on hover by CSS; the coordinates say where the point is.
+  element.dataset.label = `${label} · ${point.lat.toFixed(4)}, ${point.lon.toFixed(4)}`;
+  element.setAttribute("aria-label", element.dataset.label);
+  element.setAttribute("role", "img");
+  return element;
 }
 
 function createDroneElement(): HTMLElement {

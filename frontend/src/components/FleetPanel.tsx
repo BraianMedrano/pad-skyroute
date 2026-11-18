@@ -59,10 +59,12 @@ type FleetPanelProps = {
   onArmedChange?: (endpoint: "origin" | "destination" | null) => void;
   selectedEndpoint?: "origin" | "destination" | null;
   onEndpointsChange?: (origin?: Coordinates, destination?: Coordinates) => void;
+  /** Called after a successful request, with the new mission and a summary for the operator. */
+  onRequested?: (mission: Mission, summary: string) => void;
 };
 
 /** Fleet panel: request a delivery, and follow every mission (polled) with its price and a Pay button. */
-export function FleetPanel({ selectedId, onSelect, onMissionsChange, mode = "all", compact = false, onArmedChange, selectedEndpoint, onEndpointsChange }: FleetPanelProps = {}) {
+export function FleetPanel({ selectedId, onSelect, onMissionsChange, mode = "all", compact = false, onArmedChange, selectedEndpoint, onEndpointsChange, onRequested }: FleetPanelProps = {}) {
   const [missions, setMissions] = useState<Mission[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const loading = useRef(false);
@@ -128,11 +130,10 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange, mode = "all
         packageWeightKg: Number(weight),
         recipientDni: dni.trim(),
       });
-      setNotice({
-        kind: "ok",
-        text: `Entrega #${mission.id.slice(0, 8)} solicitada: ${statusLabel[mission.status]}, ${priceFormat.format(mission.price)}.`,
-      });
-      void refresh();
+      const summary = `Entrega #${mission.id.slice(0, 8)} solicitada: ${statusLabel[mission.status]}, ${priceFormat.format(mission.price)}.`;
+      setNotice({ kind: "ok", text: summary });
+      await refresh();
+      onRequested?.(mission, summary);
     } catch (error) {
       setNotice({ kind: "error", text: describeError(error) });
     } finally {

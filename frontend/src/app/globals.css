@@ -94,10 +94,85 @@
   box-shadow: 0 1px 6px #07111c;
   transform: rotate(-45deg);
 }
-.draft-point-origin { background: #f2a93b; }
-.draft-point-destination { background: #08798a; }
+/* Same colors as the route points: origin green, destination red (amber is for bases). */
+.draft-point-origin { background: var(--color-ok); }
+.draft-point-destination { background: var(--color-bad); }
 
-[data-theme="day"] .draft-point-origin { background: #9b5a00; }
+/* Points of the selected route: origin (green circle) and destination (red square). */
+.route-point {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border: 3px solid var(--color-bad);
+  background: var(--color-bg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-bad) 30%, transparent);
+  cursor: default;
+}
+.route-point-origin {
+  border-color: var(--color-ok);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ok) 30%, transparent);
+}
+
+/* Drone bases as helipads: an amber ring with an H. The selected mission's base pulses. */
+.base-marker {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--color-amber);
+  border-radius: 50%;
+  background: var(--color-panel);
+  color: var(--color-amber);
+  font: 700 12px/1 var(--font-display, sans-serif);
+  cursor: default;
+}
+.base-marker::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 1px solid color-mix(in srgb, var(--color-amber) 45%, transparent);
+  border-radius: 50%;
+}
+.base-marker[data-selected="true"] {
+  background: var(--color-amber);
+  color: var(--color-bg);
+}
+.base-marker[data-selected="true"]::before {
+  animation: base-pulse 1.6s ease-out infinite;
+}
+@keyframes base-pulse {
+  from { transform: scale(0.8); opacity: 1; }
+  to { transform: scale(1.6); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .base-marker[data-selected="true"]::before { animation: none; }
+}
+
+/* Hover label for route and draft points. */
+.route-point::after,
+.base-marker::after,
+.draft-point::after {
+  content: attr(data-label);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  translate: -50% 0;
+  padding: 3px 7px;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel);
+  color: var(--color-fg);
+  font: 11px/1.4 var(--font-mono, monospace);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.route-point:hover::after,
+.base-marker:hover::after,
+.draft-point:hover::after { opacity: 1; }
+/* The draft pin is rotated -45°, so its label is turned back upright. */
+.draft-point::after { rotate: 45deg; }
 
 /* Live drone markers: amber while flying, muted while available. */
 .drone-marker svg {

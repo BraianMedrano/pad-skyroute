@@ -21,6 +21,16 @@ export function LiveMap({ selectedMission, onDronesChange, theme, picking, origi
   const [drones, setDrones] = useState<Record<string, TelemetryMessage>>({});
   const [missions, setMissions] = useState<Record<string, Mission>>({});
   const requestedMissions = useRef(new Set<string>());
+  // Base of every drone, so a route can start and end where the drone takes off.
+  const [bases, setBases] = useState<Record<string, Coordinates>>({});
+
+  useEffect(() => {
+    api.listDrones().then(
+      (list) => setBases(Object.fromEntries(list.map((drone) => [drone.id, drone.homePosition]))),
+      // Without bases the routes fall back to origin → destination.
+      () => undefined,
+    );
+  }, []);
 
   useEffect(
     () =>
@@ -46,26 +56,36 @@ export function LiveMap({ selectedMission, onDronesChange, theme, picking, origi
   }, [drones]);
 
   const droneList = useMemo(() => Object.values(drones), [drones]);
+  // Two drones share each base, so keep one point per distinct position.
+  const baseList = useMemo(
+    () => [...new Map(Object.values(bases).map((base) => [`${base.lat},${base.lon}`, base])).values()],
+    [bases],
+  );
 
   const routes = useMemo(
     () =>
       droneList.flatMap((drone): MissionRoute[] => {
         const mission = drone.missionId ? missions[drone.missionId] : undefined;
-        return mission ? [{ missionId: mission.id, origin: mission.origin, destination: mission.destination }] : [];
+        return mission ? [{ missionId: mission.id, origin: mission.origin, destination: mission.destination, base: bases[drone.droneId] }] : [];
       }),
-    [droneList, missions],
+    [droneList, missions, bases],
   );
 
   const selected = useMemo(
     () =>
       selectedMission
         ? {
-            route: { missionId: selectedMission.id, origin: selectedMission.origin, destination: selectedMission.destination },
+            route: {
+              missionId: selectedMission.id,
+              origin: selectedMission.origin,
+              destination: selectedMission.destination,
+              base: selectedMission.assignedDroneId ? bases[selectedMission.assignedDroneId] : undefined,
+            },
             droneId: selectedMission.assignedDroneId,
           }
         : undefined,
-    [selectedMission],
+    [selectedMission, bases],
   );
 
-  return <FlightMap drones={droneList} routes={routes} selected={selected} theme={theme} picking={picking} origin={origin} destination={destination} />;
+  return <FlightMap drones={droneList} bases={baseList} routes={routes} selected={selected} theme={theme} picking={picking} origin={origin} destination={destination} />;
 }
