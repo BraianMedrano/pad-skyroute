@@ -26,6 +26,11 @@ public static class IntegrationServiceCollectionExtensions
             return services;
         }
 
+        // Register only available real adapters; never silently substitute Fakes.
+        services.AddHttpClient<IIdentityService, RenaperIdentityService>()
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+            .AddStandardResilienceHandler();
+
         services.AddHttpClient<IWeatherService, OpenMeteoWeatherService>()
             .AddStandardResilienceHandler();
 
