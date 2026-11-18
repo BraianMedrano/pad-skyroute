@@ -5,18 +5,17 @@
 | `UseFakes` configuration | Registrations |
 |---|---|
 | `true` | All four existing Fakes: identity, weather, payment, and webhook. |
-| `false` | Real RENAPER identity, Open-Meteo weather and Padi payment clients. All use `AddStandardResilienceHandler()`; Padi POST retries are disabled. The webhook is not registered. |
+| `false` | Real RENAPER identity, Open-Meteo weather and Padi payment clients. All use `AddStandardResilienceHandler()`; Padi POST retries are disabled. The HTTP webhook notifier is registered too. |
 | Missing or invalid | No integrations are registered. |
 
-The webhook remains an explicit local opt-in: call `AddLocalHttpWebhookNotifier()` separately, after `AddIntegrations`, only in a local composition with a controlled receiver. `AddIntegrations` itself does not register it in real mode.
+In real mode `AddIntegrations` also registers `HttpWebhookNotifier`, because the mission completion and failure use cases require `IWebhookNotifier`. The API is public and unauthenticated, so the notifier posts only when a mission's `callbackUrl` is exactly `Webhook__ReceiverUrl` (an absolute HTTP(S) URL without credentials, set by the operator). Any other callback is skipped with a warning. When `Webhook__ReceiverUrl` is unset, no webhook is delivered. Compose does not forward it, so the VPS delivers none; for a local test, set it to your controlled receiver, for example `http://127.0.0.1:9000/hook`.
 
 ## Identity (#19)
 
 Set `Renaper__BaseUrl=https://api-openrenaper.matiasagustinibanez.com` in the
 local `.env` and export it to the API process. The setting requires an absolute
-HTTPS URL without embedded credentials. Compose does not forward this setting
-by default; if running the API in a container, provide it explicitly to the
-container environment. RENAPER requires no API key.
+HTTPS URL without embedded credentials. Compose forwards it to the API
+container. RENAPER requires no API key.
 
 The client sends only the DNI lookup, does not follow redirects, and does not
 persist the provider response. It accepts a successful response only when the
@@ -34,7 +33,7 @@ Reference: https://api-openrenaper.matiasagustinibanez.com/docs
 
 ## Configuration and Compose
 
-`docker-compose.yml` forwards `UseFakes` (default `true`) and `Database__Path` to the API container. It does not forward `Renaper__BaseUrl`, `Padi__ApiKey`, `Padi__BaseUrl`, `Padi__TtlMinutes`, `Weather__MaxWindSpeedKmh`, or `Weather__MaxPrecipitationMm`. Compose therefore does not by itself configure either real provider. Set the required values in the API process environment when using real integrations; no `.env` loader is used by the application.
+`docker-compose.yml` forwards `UseFakes` (default `true`), `Database__Path`, `Renaper__BaseUrl`, `Padi__ApiKey` (default empty), `Padi__BaseUrl`, `Weather__MaxWindSpeedKmh`, and `Weather__MaxPrecipitationMm` to the API container, with the defaults documented here. Docker Compose reads them from the `.env` file next to it or from the shell. `Padi__TtlMinutes` is not forwarded, so containers use its default. Real mode needs a non-empty `Padi__ApiKey`. Outside Compose the application does not load `.env`; set the values in the API process environment.
 
 Padi configuration keys are `Padi__ApiKey`, `Padi__BaseUrl` (default `https://padi.runasp.net`), and optional `Padi__TtlMinutes` (default 30, positive integer). Generate an API key from **Integraciones** in the [Padi app](https://padi-billetera.netlify.app/) using your seller account. Keep the real key only in a private local or server environment, never in chat, logs, Git, or frontend configuration. The key is sent in the `X-Api-Key` request header and validated when the Padi client is resolved. Fake mode does not require Padi configuration.
 
@@ -73,13 +72,13 @@ Unsafe weather returns the business rejection reason (422 through the request us
 
 ## Real-mode composition limits
 
-Real mode does not register the webhook notifier automatically. Without the explicit local opt-in, the API fails to start in real mode because the mission completion and failure use cases require `IWebhookNotifier`. The local webhook method is not an implicit production registration. This composition does not add a Fake fallback.
+Real mode registers every port with a real implementation, including the webhook notifier restricted to `Webhook__ReceiverUrl`, so the API starts with `UseFakes=false`. This composition does not add a Fake fallback.
 
 ## Live verification (2026-11-18)
 
 The manual academic check exercised the real .NET Padi adapter. After the local `.env` was converted to LF and reloaded, local configuration passed. At `01:23:04.6365729 UTC` the adapter created an ARS 1500 link (HTTP 201, validated checkout URL and expiry). A read-only query of that same link returned `Pending`; after the academic payment, another query returned `Paid`.
 
-A later combined run with real RENAPER, Open-Meteo and Padi (local webhook opt-in) created a mission for an authorized DNI, returned a Padi `checkoutUrl` from `POST /api/missions/{id}/payment`, and after payment the mission moved from `Validated` to `InProgress` with an assigned drone. A malformed DNI and a RENAPER-rejected DNI returned 422; an unreachable RENAPER returned 503 while the API kept running.
+A later combined run with real RENAPER, Open-Meteo and Padi (with a local webhook registration, before it moved into real mode) created a mission for an authorized DNI, returned a Padi `checkoutUrl` from `POST /api/missions/{id}/payment`, and after payment the mission moved from `Validated` to `InProgress` with an assigned drone. A malformed DNI and a RENAPER-rejected DNI returned 422; an unreachable RENAPER returned 503 while the API kept running.
 
 Earlier attempts returned HTTP 400 with HTML even with a known content length. The successful run supersedes the adapter's live blocker but does not establish the cause of those earlier responses.
 

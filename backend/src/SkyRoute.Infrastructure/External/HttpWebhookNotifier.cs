@@ -25,10 +25,12 @@ internal sealed class HttpWebhookNotifier(
         if (mission.CallbackUrl is not { } callback)
             return;
 
-        if (!callback.IsAbsoluteUri || (callback.Scheme is not ("http" or "https")) ||
-            callback.Host is not ("127.0.0.1" or "[::1]") || callback.UserInfo.Length != 0)
+        // The API is public and unauthenticated: deliver only to the exact receiver the operator configured.
+        if (!Uri.TryCreate(configuration["Webhook:ReceiverUrl"], UriKind.Absolute, out var receiver) ||
+            receiver.Scheme is not ("http" or "https") || receiver.UserInfo.Length != 0 ||
+            !callback.IsAbsoluteUri || callback != receiver)
         {
-            logger.LogWarning("Webhook for mission {MissionId} skipped: only loopback HTTP(S) destinations are supported.", mission.Id);
+            logger.LogWarning("Webhook for mission {MissionId} skipped: callbackUrl is not the configured receiver.", mission.Id);
             return;
         }
 
