@@ -1,20 +1,41 @@
 # External integrations
 
+## Integration modes
+
+`docker-compose.yml` forwards `UseFakes` and defaults it to `true`.
+`UseFakes=true` keeps all four Fakes. Explicit `UseFakes=false` registers real
+Open-Meteo and RENAPER typed clients with `AddStandardResilienceHandler()`.
+Missing or invalid `UseFakes` registers no integrations. There is no automatic
+Fake fallback.
+
+**Real-mode acceptance is pending.** The default real-mode composition still
+lacks `IPaymentGateway` (#20) and `IWebhookNotifier` (#15 has a local opt-in).
+Flows that require these ports cannot complete, and the API can fail to start
+when dependency validation is enabled. Agree on a local composition before
+trying to verify #14 and #19 through `POST /api/missions`.
+
+## Identity (#19)
+
+Set `Renaper__BaseUrl=https://api-openrenaper.matiasagustinibanez.com` in the
+local `.env` and export it to the API process. The setting requires an absolute
+HTTPS URL without embedded credentials. Compose does not forward this setting
+by default; if running the API in a container, provide it explicitly to the
+container environment. RENAPER requires no API key.
+
+The client sends only the DNI lookup, does not follow redirects, and does not
+persist the provider response. It accepts a successful response only when the
+returned DNI matches the submitted one.
+
+| Result | SkyRoute outcome |
+| --- | --- |
+| Invalid format, documented `404` (not found) or `422` (invalid input) | `422` business rejection |
+| Documented `409` (ambiguous match) | `422`: DNI could not be verified unambiguously |
+| Transport error, timeout, throttling, unexpected status or malformed response | `503` via `ExternalServiceUnavailableException` |
+
+Verify live behavior only with synthetic DNIs supplied by the RENAPER team.
+Reference: https://api-openrenaper.matiasagustinibanez.com/docs
+
 ## Weather (#14)
-
-`docker-compose.yml` forwards `UseFakes` to the API container and defaults it
-to `true`. `UseFakes=true` keeps all four existing Fakes. Explicit
-`UseFakes=false` registers only `OpenMeteoWeatherService`, with a typed HttpClient
-and `AddStandardResilienceHandler()`. Missing or invalid `UseFakes` still
-registers no integrations. No new switch or automatic Fake fallback is added.
-
-**Real-mode mission flows are not ready:** mission requests also need the
-identity adapter (#19); payment flows need `IPaymentGateway` (#20); and terminal
-mission notifications need `IWebhookNotifier`. Those services are not registered
-in this weather-only mode. The API's dependency-injected paths that require them
-cannot complete until their real integrations are available. End-to-end weather
-rejection and service-outage acceptance criteria remain pending until #19 is
-available.
 
 ### Configuration
 
@@ -63,7 +84,7 @@ mission-level acceptance.
 
 The allowlisted resilience package requires an issue-specific exception for
 `SkyRoute.Infrastructure.csproj`, authorized in #14. When merging #20, retain one
-compatible package reference and combine weather/payment registrations instead
-of replacing either adapter. No Padi implementation is included here.
+compatible package reference and combine identity, weather and payment
+registrations. No Padi implementation is included here.
 
 Reference: https://open-meteo.com/en/docs
