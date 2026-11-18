@@ -1,3 +1,4 @@
+import { FleetPanel } from "@/components/FleetPanel";
 import { LiveMap } from "@/components/LiveMap";
 
 export default function Home() {
@@ -10,12 +11,13 @@ export default function Home() {
         <span className="ml-auto font-mono text-xs text-muted">San Miguel de Tucumán</span>
       </header>
 
-      <main className="grid min-h-0 grid-rows-[auto_minmax(320px,1fr)_auto] min-[960px]:grid-cols-[230px_minmax(0,1fr)_250px] min-[960px]:grid-rows-1">
+      <main className="grid min-h-0 grid-rows-[auto_minmax(320px,1fr)_auto] min-[960px]:grid-cols-[300px_minmax(0,1fr)_250px] min-[960px]:grid-rows-1">
         <aside
           aria-label="Fleet"
-          className="border-b border-line bg-panel p-3.5 min-[960px]:border-r min-[960px]:border-b-0"
+          className="max-h-[45dvh] overflow-y-auto border-b border-line bg-panel p-3.5 min-[960px]:max-h-none min-[960px]:border-r min-[960px]:border-b-0"
         >
           <span className="label">Fleet</span>
+          <FleetPanel />
         </aside>
 
         <section className="min-h-80 min-w-0">
