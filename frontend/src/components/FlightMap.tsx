@@ -11,6 +11,7 @@ const DEMO_CENTER: [number, number] = [-65.2039, -26.8305];
 const DEMO_ZOOM = 14;
 
 const ROUTES_SOURCE = "mission-routes";
+const SELECTED_SOURCE = "selected-route";
 
 // OpenStreetMap raster tiles, inverted and desaturated to fit the dark theme.
 const MAP_STYLE: StyleSpecification = {
@@ -25,6 +26,7 @@ const MAP_STYLE: StyleSpecification = {
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
     [ROUTES_SOURCE]: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
+    [SELECTED_SOURCE]: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
   },
   layers: [
     { id: "background", type: "background", paint: { "background-color": "#07111c" } },
@@ -46,6 +48,12 @@ const MAP_STYLE: StyleSpecification = {
       source: ROUTES_SOURCE,
       paint: { "line-color": "#f2a93b", "line-width": 2, "line-dasharray": [2, 2], "line-opacity": 0.8 },
     },
+    {
+      id: "selected-route",
+      type: "line",
+      source: SELECTED_SOURCE,
+      paint: { "line-color": "#4fc3d6", "line-width": 3 },
+    },
   ],
 };
 
@@ -59,10 +67,12 @@ export type MissionRoute = {
 type FlightMapProps = {
   drones?: TelemetryMessage[];
   routes?: MissionRoute[];
+  /** Mission to focus: its route is highlighted and framed together with its drone. */
+  selected?: { route: MissionRoute; droneId: string | null };
 };
 
 /** Map of the demo area. Fills its parent, so it works inside the app layout or full screen. */
-export function FlightMap({ drones = [], routes = [] }: FlightMapProps) {
+export function FlightMap({ drones = [], routes = [], selected }: FlightMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const markerClassRef = useRef<typeof Marker>(undefined);
   const markersRef = useRef<Record<string, Marker>>({});
@@ -118,6 +128,7 @@ export function FlightMap({ drones = [], routes = [] }: FlightMapProps) {
       // The glyph points north, so the heading is the rotation as is.
       marker.setLngLat([drone.lon, drone.lat]).setRotation(drone.headingDeg);
       marker.getElement().dataset.status = drone.status;
+      marker.getElement().dataset.selected = String(drone.droneId === selected?.droneId);
     }
 
     for (const id of Object.keys(markers)) {
@@ -126,7 +137,7 @@ export function FlightMap({ drones = [], routes = [] }: FlightMapProps) {
         delete markers[id];
       }
     }
-  }, [map, drones]);
+  }, [map, drones, selected?.droneId]);
 
   // Straight line from origin to destination for every drone on a mission.
   useEffect(() => {
@@ -146,6 +157,59 @@ export function FlightMap({ drones = [], routes = [] }: FlightMapProps) {
       })),
     });
   }, [map, routes]);
+
+  // Highlight the selected route and frame it, plus its drone once that one reports a position.
+  // It reframes on a new selection or when the drone first appears, never on every tick, so the user can still pan.
+  const selectedRoute = selected?.route;
+  const selectedMissionId = selectedRoute?.missionId;
+  const selectedDrone = drones.find((drone) => drone.droneId === selected?.droneId);
+  const hasDrone = selectedDrone !== undefined;
+  const dronePosition = useRef(selectedDrone);
+  dronePosition.current = selectedDrone;
+  const routeRef = useRef(selectedRoute);
+  routeRef.current = selectedRoute;
+
+  useEffect(() => {
+    const source = map?.getSource<GeoJSONSource>(SELECTED_SOURCE);
+    source?.setData({
+      type: "FeatureCollection",
+      features: selectedRoute
+        ? [
+            {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "LineString",
+                coordinates: [
+                  [selectedRoute.origin.lon, selectedRoute.origin.lat],
+                  [selectedRoute.destination.lon, selectedRoute.destination.lat],
+                ],
+              },
+            },
+          ]
+        : [],
+    });
+  }, [map, selectedRoute]);
+
+  useEffect(() => {
+    const route = routeRef.current;
+    if (!map || !route) return;
+    const points: [number, number][] = [
+      [route.origin.lon, route.origin.lat],
+      [route.destination.lon, route.destination.lat],
+    ];
+    const drone = dronePosition.current;
+    if (drone) points.push([drone.lon, drone.lat]);
+    const lons = points.map(([lon]) => lon);
+    const lats = points.map(([, lat]) => lat);
+    map.fitBounds(
+      [
+        [Math.min(...lons), Math.min(...lats)],
+        [Math.max(...lons), Math.max(...lats)],
+      ],
+      { padding: 70, maxZoom: 16, duration: 600 },
+    );
+  }, [map, selectedMissionId, hasDrone]);
 
   return <div ref={containerRef} className="h-full w-full" aria-label="Operations map" />;
 }

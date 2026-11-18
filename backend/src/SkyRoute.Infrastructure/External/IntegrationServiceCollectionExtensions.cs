@@ -26,6 +26,9 @@ public static class IntegrationServiceCollectionExtensions
             return services;
         }
 
+        services.AddHttpClient<IWeatherService, OpenMeteoWeatherService>()
+            .AddStandardResilienceHandler();
+
         services.AddHttpClient<IPaymentGateway, PadiPaymentGateway>((_, client) =>
             ConfigurePadiClient(client, configuration))
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
