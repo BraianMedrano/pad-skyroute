@@ -22,13 +22,13 @@ const jetBrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "SkyRoute",
-  description: "Drone fleet management",
+  description: "Gestión de flota de drones",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="es"
       className={`${barlow.variable} ${barlowCondensed.variable} ${jetBrainsMono.variable}`}
     >
       <body>{children}</body>

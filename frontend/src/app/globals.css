@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Flight-deck tokens. Dark only. */
+/* Flight-deck tokens: night is the default, with a restrained day palette. */
 @theme {
   --color-bg: #07111c;
   --color-panel: #0b1a29;
@@ -16,6 +16,20 @@
 }
 
 /* Font families come from next/font variables set in layout.tsx. */
+[data-theme="day"] {
+  --color-bg: #edf2f4;
+  --color-panel: #ffffff;
+  --color-panel-2: #e3eaee;
+  --color-fg: #172b3a;
+  --color-muted: #526a7a;
+  --color-line: #c6d2da;
+  --color-amber: #9b5a00;
+  --color-on-amber: #ffffff;
+  --color-cyan: #08798a;
+  --color-ok: #16743b;
+  --color-bad: #b42318;
+}
+
 @theme inline {
   --font-display: var(--font-barlow-condensed), "Arial Narrow", sans-serif;
   --font-sans: var(--font-barlow), "Helvetica Neue", Arial, sans-serif;
@@ -36,6 +50,8 @@
     color-scheme: dark;
   }
 
+  [data-theme="day"] { color-scheme: light; }
+
   body {
     background: var(--color-bg);
     color: var(--color-fg);
@@ -48,7 +64,7 @@
   }
 }
 
-/* Keep the MapLibre attribution readable on the dark map.
+/* Keep the MapLibre attribution readable on both map themes.
    The .maplibregl-map prefix outranks maplibre-gl.css, which loads after this file. */
 .maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib {
   background: color-mix(in srgb, var(--color-panel) 85%, transparent);
@@ -64,6 +80,24 @@
 .maplibregl-map .maplibregl-ctrl-attrib-button {
   filter: invert(1);
 }
+
+[data-theme="day"] .maplibregl-map .maplibregl-ctrl-attrib-button { filter: none; }
+
+.map-picking .maplibregl-canvas { cursor: crosshair; }
+
+.draft-point {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  box-shadow: 0 1px 6px #07111c;
+  transform: rotate(-45deg);
+}
+.draft-point-origin { background: #f2a93b; }
+.draft-point-destination { background: #08798a; }
+
+[data-theme="day"] .draft-point-origin { background: #9b5a00; }
 
 /* Live drone markers: amber while flying, muted while available. */
 .drone-marker svg {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { api, ApiError, type Mission, type MissionStatus } from "@/lib/api/client";
+import { api, ApiError, type Coordinates, type Mission, type MissionStatus } from "@/lib/api/client";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -14,6 +14,8 @@ const priceFormat = new Intl.NumberFormat("es-AR", {
   currencyDisplay: "code",
   maximumFractionDigits: 0,
 });
+
+const statusLabel: Record<MissionStatus, string> = { Requested: "Solicitada", Validated: "Validada", Paid: "Pagada", Assigned: "Dron asignado", InProgress: "En curso", Completed: "Completada", Failed: "Fallida" };
 
 const statusColor: Record<MissionStatus, string> = {
   Requested: "text-muted",
@@ -33,9 +35,9 @@ type PayNote = { kind: "simulated" | "checkout" | "error"; text: string; url?: s
 
 function describeError(error: unknown): string {
   if (error instanceof ApiError) {
-    return error.status === 422 ? `Rejected: ${error.message}` : `Request failed (${error.status}): ${error.message}`;
+    return error.status === 422 ? `Solicitud rechazada: ${error.message}` : `La solicitud falló (${error.status}): ${error.message}`;
   }
-  return "Could not reach the API.";
+  return "No se pudo conectar con el servicio.";
 }
 
 function parseHttpUrl(value: string): URL | undefined {
@@ -52,18 +54,23 @@ type FleetPanelProps = {
   onSelect?: (id: string) => void;
   /** Called with every refreshed list, so other panels can show the same missions. */
   onMissionsChange?: (missions: Mission[]) => void;
+  mode?: "all" | "delivery" | "missions";
+  compact?: boolean;
+  onArmedChange?: (endpoint: "origin" | "destination" | null) => void;
+  selectedEndpoint?: "origin" | "destination" | null;
+  onEndpointsChange?: (origin?: Coordinates, destination?: Coordinates) => void;
 };
 
 /** Fleet panel: request a delivery, and follow every mission (polled) with its price and a Pay button. */
-export function FleetPanel({ selectedId, onSelect, onMissionsChange }: FleetPanelProps = {}) {
+export function FleetPanel({ selectedId, onSelect, onMissionsChange, mode = "all", compact = false, onArmedChange, selectedEndpoint, onEndpointsChange }: FleetPanelProps = {}) {
   const [missions, setMissions] = useState<Mission[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const loading = useRef(false);
 
-  const [originLat, setOriginLat] = useState("-26.8305");
-  const [originLon, setOriginLon] = useState("-65.2039");
-  const [destinationLat, setDestinationLat] = useState("-26.8240");
-  const [destinationLon, setDestinationLon] = useState("-65.2200");
+  const [originLat, setOriginLat] = useState("");
+  const [originLon, setOriginLon] = useState("");
+  const [destinationLat, setDestinationLat] = useState("");
+  const [destinationLon, setDestinationLon] = useState("");
   const [weight, setWeight] = useState("1.5");
   const [dni, setDni] = useState("12345678");
   const [submitting, setSubmitting] = useState(false);
@@ -93,8 +100,25 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange }: FleetPane
     return () => clearInterval(timer);
   }, [refresh]);
 
+  useEffect(() => {
+    onEndpointsChange?.(originLat && originLon ? { lat: Number(originLat), lon: Number(originLon) } : undefined, destinationLat && destinationLon ? { lat: Number(destinationLat), lon: Number(destinationLon) } : undefined);
+  }, [originLat, originLon, destinationLat, destinationLon, onEndpointsChange]);
+
+  useEffect(() => {
+    if (!selectedEndpoint) return;
+    const handlePoint = (event: Event) => {
+      const { lat, lon } = (event as CustomEvent<{ lat: number; lon: number }>).detail;
+      if (selectedEndpoint === "origin") { setOriginLat(String(lat)); setOriginLon(String(lon)); }
+      else { setDestinationLat(String(lat)); setDestinationLon(String(lon)); }
+      onArmedChange?.(null);
+    };
+    window.addEventListener("skyroute-map-point", handlePoint);
+    return () => window.removeEventListener("skyroute-map-point", handlePoint);
+  }, [selectedEndpoint, onArmedChange]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!originLat || !originLon || !destinationLat || !destinationLon) return;
     setSubmitting(true);
     setNotice(null);
     try {
@@ -106,7 +130,7 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange }: FleetPane
       });
       setNotice({
         kind: "ok",
-        text: `Mission #${mission.id.slice(0, 8)} requested: ${mission.status}, ${priceFormat.format(mission.price)}.`,
+        text: `Entrega #${mission.id.slice(0, 8)} solicitada: ${statusLabel[mission.status]}, ${priceFormat.format(mission.price)}.`,
       });
       void refresh();
     } catch (error) {
@@ -125,13 +149,13 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange }: FleetPane
       if (url?.hostname === FAKE_CHECKOUT_HOST) {
         note = {
           kind: "simulated",
-          text: "Simulated payment (fake gateway): it is confirmed automatically in a few seconds.",
+          text: "Pago simulado (pasarela ficticia): se confirma automáticamente en unos segundos.",
         };
       } else if (url) {
         window.open(url.href, "_blank", "noopener,noreferrer");
-        note = { kind: "checkout", text: "Checkout opened. The status updates once the payment is confirmed.", url: url.href };
+        note = { kind: "checkout", text: "Esperando confirmación del pago.", url: url.href };
       } else {
-        note = { kind: "error", text: "The API returned an unusable checkout link." };
+        note = { kind: "error", text: "La API devolvió un enlace de pago no válido." };
       }
       setPayNotes((current) => ({ ...current, [id]: note }));
     } catch (error) {
@@ -144,38 +168,31 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange }: FleetPane
 
   return (
     <div className="mt-3 flex flex-col gap-5">
-      <form onSubmit={submit} className="flex flex-col gap-3" aria-label="Request a mission">
-        <span className="label">Request mission</span>
-
-        <fieldset className="grid grid-cols-2 gap-2">
-          <legend className="mb-1 font-mono text-xs text-muted">Origin</legend>
-          <input aria-label="Origin latitude" placeholder="lat" type="number" step="any" required className={inputClass} value={originLat} onChange={(e) => setOriginLat(e.target.value)} />
-          <input aria-label="Origin longitude" placeholder="lon" type="number" step="any" required className={inputClass} value={originLon} onChange={(e) => setOriginLon(e.target.value)} />
-        </fieldset>
-
-        <fieldset className="grid grid-cols-2 gap-2">
-          <legend className="mb-1 font-mono text-xs text-muted">Destination</legend>
-          <input aria-label="Destination latitude" placeholder="lat" type="number" step="any" required className={inputClass} value={destinationLat} onChange={(e) => setDestinationLat(e.target.value)} />
-          <input aria-label="Destination longitude" placeholder="lon" type="number" step="any" required className={inputClass} value={destinationLon} onChange={(e) => setDestinationLon(e.target.value)} />
-        </fieldset>
+      {mode !== "missions" && <form onSubmit={submit} className={`flex flex-col gap-3 ${compact ? "hidden" : ""}`} aria-label="Solicitar una entrega">
+        <span className="label">Nueva entrega</span>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" aria-pressed={selectedEndpoint === "origin"} onClick={() => onArmedChange?.(selectedEndpoint === "origin" ? null : "origin")} className={`border p-2 text-left text-xs ${selectedEndpoint === "origin" ? "border-amber text-amber" : "border-line text-fg"}`}>Elegir origen<span aria-live="polite" className="block font-mono text-muted">{originLat ? `${Number(originLat).toFixed(4)}, ${Number(originLon).toFixed(4)}` : "Sin seleccionar"}</span></button>
+          <button type="button" aria-pressed={selectedEndpoint === "destination"} onClick={() => onArmedChange?.(selectedEndpoint === "destination" ? null : "destination")} className={`border p-2 text-left text-xs ${selectedEndpoint === "destination" ? "border-cyan text-cyan" : "border-line text-fg"}`}>Elegir destino<span aria-live="polite" className="block font-mono text-muted">{destinationLat ? `${Number(destinationLat).toFixed(4)}, ${Number(destinationLon).toFixed(4)}` : "Sin seleccionar"}</span></button>
+        </div>
+        {selectedEndpoint && <p role="status" className="text-xs text-amber">Hacé clic en el mapa para elegir el {selectedEndpoint === "origin" ? "origen" : "destino"}.</p>}
 
         <div className="grid grid-cols-2 gap-2">
           <label className="flex flex-col gap-1 font-mono text-xs text-muted">
-            Weight (kg)
+            Peso (kg)
             <input type="number" step="any" required className={inputClass} value={weight} onChange={(e) => setWeight(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1 font-mono text-xs text-muted">
-            Recipient DNI
+            DNI del destinatario
             <input type="text" inputMode="numeric" required className={inputClass} value={dni} onChange={(e) => setDni(e.target.value)} />
           </label>
         </div>
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !originLat || !originLon || !destinationLat || !destinationLon}
           className="bg-amber px-3 py-1.5 font-display text-sm font-semibold tracking-[0.14em] text-on-amber uppercase disabled:opacity-50"
         >
-          {submitting ? "Requesting…" : "Request mission"}
+          {submitting ? "Enviando…" : "Solicitar entrega"}
         </button>
 
         {notice && (
@@ -183,16 +200,16 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange }: FleetPane
             {notice.text}
           </p>
         )}
-      </form>
+      </form>}
 
-      <section aria-label="Missions" className="flex flex-col gap-2">
-        <span className="label">Missions</span>
-        {listFailed && <p className="text-xs text-bad">Could not load the missions. Retrying…</p>}
-        {missions?.length === 0 && <p className="text-xs text-muted">No missions yet.</p>}
+      {mode !== "delivery" && <section aria-label="Misiones" className="flex flex-col gap-2">
+        <span className="label">Misiones</span>
+        {listFailed && <p className="text-xs text-bad">No se pudieron cargar las misiones. Reintentando…</p>}
+        {missions?.length === 0 && <p className="text-xs text-muted">Todavía no hay misiones.</p>}
         <ul className="flex flex-col gap-2">
           {/* The API lists in creation order; show the newest first. */}
           {missions?.toReversed().map((mission) => {
-            const note = mission.status === "Validated" ? payNotes[mission.id] : undefined;
+            const note = payNotes[mission.id];
             const selected = mission.id === selectedId;
             return (
               <li key={mission.id} className={`border bg-panel-2 p-2.5 ${selected ? "border-amber" : "border-line"}`}>
@@ -200,27 +217,30 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange }: FleetPane
                   type="button"
                   onClick={() => onSelect?.(mission.id)}
                   aria-pressed={selected}
-                  aria-label={`Select mission ${mission.id.slice(0, 8)}`}
+                  aria-label={`Seleccionar misión ${mission.id.slice(0, 8)}`}
                   className="flex w-full items-center justify-between gap-2 text-left"
                 >
                   <span className="font-mono text-xs" title={mission.id}>
                     #{mission.id.slice(0, 8)}
                   </span>
                   <span className={`font-display text-[13px] font-semibold tracking-[0.12em] uppercase ${statusColor[mission.status]}`}>
-                    {mission.status}
+                    {statusLabel[mission.status]}
                   </span>
                 </button>
-                <div className="mt-1.5 flex items-center justify-between gap-2">
+                <div className="mt-1.5 flex flex-col items-start gap-1.5">
                   <span className="font-mono text-xs text-muted">{priceFormat.format(mission.price)}</span>
-                  {mission.status === "Validated" && (
+                  {mission.status === "Validated" && !note && (
+                    <>
+                    <p className="text-xs text-muted">Padi se abrirá en otra pestaña; puede pedirte que inicies sesión.</p>
                     <button
                       type="button"
                       onClick={() => void pay(mission.id)}
                       disabled={payingId === mission.id}
                       className="border border-amber px-2.5 py-0.5 font-display text-[13px] font-semibold tracking-[0.14em] text-amber uppercase disabled:opacity-50"
                     >
-                      {payingId === mission.id ? "Paying…" : "Pay"}
+                      {payingId === mission.id ? "Conectando con Padi…" : "Pagar con Padi"}
                     </button>
+                    </>
                   )}
                 </div>
                 {mission.status === "Failed" && mission.failureReason && (
@@ -233,7 +253,7 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange }: FleetPane
                       <>
                         {" "}
                         <a href={note.url} target="_blank" rel="noopener noreferrer" className="text-cyan underline">
-                          Open checkout
+                          Abrir Padi
                         </a>
                       </>
                     )}
@@ -243,7 +263,7 @@ export function FleetPanel({ selectedId, onSelect, onMissionsChange }: FleetPane
             );
           })}
         </ul>
-      </section>
+      </section>}
     </div>
   );
 }

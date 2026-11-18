@@ -69,13 +69,18 @@ type FlightMapProps = {
   routes?: MissionRoute[];
   /** Mission to focus: its route is highlighted and framed together with its drone. */
   selected?: { route: MissionRoute; droneId: string | null };
+  theme?: "day" | "night";
+  picking?: boolean;
+  origin?: Coordinates;
+  destination?: Coordinates;
 };
 
 /** Map of the demo area. Fills its parent, so it works inside the app layout or full screen. */
-export function FlightMap({ drones = [], routes = [], selected }: FlightMapProps) {
+export function FlightMap({ drones = [], routes = [], selected, theme = "night", picking = false, origin, destination }: FlightMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const markerClassRef = useRef<typeof Marker>(undefined);
   const markersRef = useRef<Record<string, Marker>>({});
+  const draftMarkersRef = useRef<{ origin?: Marker; destination?: Marker }>({});
   const [map, setMap] = useState<MapLibreMap>();
 
   useEffect(() => {
@@ -103,10 +108,39 @@ export function FlightMap({ drones = [], routes = [], selected }: FlightMapProps
       cancelled = true;
       instance?.remove();
       markersRef.current = {};
+      draftMarkersRef.current = {};
       // Forget the removed map, so markers are not attached to it after a Fast Refresh.
       setMap(undefined);
     };
   }, []);
+
+  useEffect(() => {
+    if (!map) return;
+    const day = theme === "day";
+    map.setPaintProperty("background", "background-color", day ? "#edf2f4" : "#07111c");
+    map.setPaintProperty("osm", "raster-brightness-min", day ? 0.1 : 0.75);
+    map.setPaintProperty("osm", "raster-brightness-max", day ? 0.9 : 0.08);
+    map.setPaintProperty("osm", "raster-saturation", day ? -0.15 : -0.8);
+    map.setPaintProperty("osm", "raster-hue-rotate", day ? 0 : 180);
+    map.setPaintProperty("osm", "raster-opacity", day ? 1 : 0.8);
+  }, [map, theme]);
+
+  useEffect(() => {
+    if (!map) return;
+    const handleClick = (event: import("maplibre-gl").MapMouseEvent) => {
+      if (!picking) return;
+      window.dispatchEvent(new CustomEvent("skyroute-map-point", { detail: { lat: event.lngLat.lat, lon: event.lngLat.wrap().lng } }));
+    };
+    map.on("click", handleClick);
+    return () => { map.off("click", handleClick); };
+  }, [map, picking]);
+
+  useEffect(() => {
+    if (!map || !containerRef.current) return;
+    const observer = new ResizeObserver(() => map.resize());
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [map]);
 
   // One marker per drone, moved and rotated on every update.
   useEffect(() => {
@@ -138,6 +172,22 @@ export function FlightMap({ drones = [], routes = [], selected }: FlightMapProps
       }
     }
   }, [map, drones, selected?.droneId]);
+
+  useEffect(() => {
+    const MarkerClass = markerClassRef.current;
+    if (!map || !MarkerClass) return;
+    for (const endpoint of ["origin", "destination"] as const) {
+      const point = endpoint === "origin" ? origin : destination;
+      const current = draftMarkersRef.current[endpoint];
+      if (!point) { current?.remove(); delete draftMarkersRef.current[endpoint]; continue; }
+      if (!current) {
+        const element = document.createElement("span");
+        element.className = `draft-point draft-point-${endpoint}`;
+        element.setAttribute("aria-label", endpoint === "origin" ? "Origen seleccionado" : "Destino seleccionado");
+        draftMarkersRef.current[endpoint] = new MarkerClass({ element, color: endpoint === "origin" ? "#f2a93b" : "#4fc3d6" }).setLngLat([point.lon, point.lat]).addTo(map);
+      } else current.setLngLat([point.lon, point.lat]);
+    }
+  }, [map, origin, destination]);
 
   // Straight line from origin to destination for every drone on a mission.
   useEffect(() => {
@@ -211,7 +261,7 @@ export function FlightMap({ drones = [], routes = [], selected }: FlightMapProps
     );
   }, [map, selectedMissionId, hasDrone]);
 
-  return <div ref={containerRef} className="h-full w-full" aria-label="Operations map" />;
+  return <div ref={containerRef} className={`h-full w-full ${picking ? "map-picking" : ""}`} aria-label={picking ? "Mapa; elegí un punto para la entrega" : "Mapa de operaciones"} />;
 }
 
 function createDroneElement(): HTMLElement {

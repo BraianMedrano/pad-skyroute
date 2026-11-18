@@ -1,0 +1,32 @@
+# SkyRoute operator UX refresh
+
+## Objective and boundaries
+Improve the existing cockpit with the user's four reference screenshots and deployed UI as visual context. Spanish operator copy (preserve SkyRoute, Padi, MapLibre, OpenStreetMap and API identifiers); click-to-select origin and destination; day/night presentation including the street map. Add only low-complexity UX improvements using existing data: clear navigation, hierarchy/status badges, readable contrast, battery indicator and honest empty states. No backend, API, schema, dependency, payment or telemetry protocol changes, no new routes or suites, no estimates/addresses/delivery scheduling/fake signals. Preserve mission request, validation, payment, polling, selection and tracking.
+
+## Baseline
+- `feat/ux-ui-refresh` in `/home/facu/facultad/pad-skyroute-ux`, at observed latest `origin/main` `17b25d371d2c439a48056d8aa3ee219677af3d2f`. #54 merged. Deployed root responded HTTP 200; no deployed mutations. All four source images visually inspected by parent.
+- Original checkout plus all local changes preserved. Feature worktree local `.gitignore` contains a Pi-state ignore addition and `.codegraph/` is untracked; attribution unknown, neither is part of this feature. Do not modify, delete or stage them. This local tracking file stays outside the frontend-only diff. No commit, push, issue creation, or PR explicitly requested.
+- Existing test services on ports 3000/5113 remain untouched. Reserve free loopback ports 3018/5118 for independent local verification with Fakes, a disposable database, and scoped process environments.
+
+## Tasks
+- [x] T1 — Map design, data, and existing workflow. Read-only scout mapped all edited surfaces and measured likely review scope; parent read references, checked base and deployment HTTP response. No implementation commit for exploration.
+- [ ] T2 — Implement cockpit presentation, map endpoints, and themes. **In progress.** One bounded writer for seven exact frontend paths. Keep three in-page views (Operaciones, Nueva entrega, Misiones), reuse the actual map in operations/delivery, keep Fleet polling and map/SignalR mounted across views; preserve route/selection/mission form state across view changes. No manual coordinate editing; visible Origin/Destination selection, preview, reselect, submit guard, truthful labels and deterministic lifecycle. Polish accessibility and small-screen layout proportionately.
+- [ ] T3 — Verify behavior and presentation and report readiness. Build/typecheck plus scoped runtime/visual confirmation with existing tools, exact candidate bytes, no external payments/services except normal locked/official build assets. Manual or one-off temporary local smoke, no added test files/suites. Do not claim screenshots or browser behavior not observed.
+
+## Verification and delivery
+- TDD N/A for frontend-only UI under AGENTS.md and user scope; do not add tests. Writer: `pnpm --dir frontend install --frozen-lockfile` if needed, `pnpm --dir frontend build`, `pnpm --dir frontend exec tsc --noEmit`, `git diff --check -- frontend/`. Read frontend/AGENTS.md and matching installed Next documentation before edits.
+- RDD off, use ASSESS after delegated writer and follow independent verifier routing. Scope is exact seven paths: `frontend/src/app/page.tsx`, `frontend/src/app/layout.tsx`, `frontend/src/app/globals.css`, `frontend/src/components/FleetPanel.tsx`, `frontend/src/components/LiveMap.tsx`, `frontend/src/components/FlightMap.tsx`, `frontend/src/components/MissionDetails.tsx`.
+- Acceptance: all operator sections/text in Spanish and document lang `es`; status text mapped without changing enum/contract; endpoint picking fills correct existing lat/lon payload with no numeric coordinate inputs, repeated selection works, cannot submit incomplete draft; existing request/validation/pay/list/detail/telemetry stay available; theme and map styling both switch while preserving draft/selection, original street map and attribution; no dead placeholder actions. Start at night to retain original baseline; persistence is not required. Compact accessible UI, no new controls for unavailable data.
+- Forecast ~250–350 authored changed lines from scout, measure actual. Strategy `ask-on-risk`; if over review threshold protect review scope without code golf and stop before delivery. Rollback boundary only seven scoped frontend files; preserve local tooling, both unrelated worktrees and tracked user edits.
+
+## Observed implementation evidence
+- Bounded writer `mwmkzwoz-u-qcqt` returned **partial**: five scoped frontend files changed (reported 71 additions / 46 deletions). Section navigation, Spanish document language and some labels, day shell palette, and status translations exist. The required map-click endpoint selection and map theme are missing; navigation may remount FleetPanel, and some UI copy remains English. The task stays open; this is not a deliverable build.
+- Writer reported exit 0 for locked install, frontend build, TypeScript and frontend whitespace checks. These are evidence for its partial diff only, not full functional or visual proof. Writer model/effort unknown. No source changes from the parent and no commit or publishing.
+
+## Approved Padi handoff presentation
+- User approved continuing on this branch after the read-only checkout analysis. Keep the current payment action, existing external checkout URL, fake payment behavior, and API polling unchanged.
+- In the mission card, show the amount near `Pagar con Padi`. Before the action, note that Padi opens in another tab and may require sign-in. After a usable real checkout link is returned, show `Esperando confirmación del pago` and keep the existing fallback link as `Abrir Padi`. Do not claim the popup opened, nor equate receiving a link with confirming payment. Keep the simulated payment case explicit. Keep `Pagada` distinct from `Dron asignado` based on polled mission data.
+- Acceptance: clear mobile-readable grouping; check distinct real-link/Fake presentation without performing real checkout; no provider, backend or contract changes. No hardcoded live link or tokens.
+
+## Next step
+Resume T2 from the existing five-file partial diff in the same seven paths; finish map endpoint picking, theme synchronization, mounted view continuity, Spanish copy and the approved payment handoff. Assess the final scoped diff and complete T3 before claiming the branch is test-ready. Do not bring payment integration changes or new functionality into the refresh.

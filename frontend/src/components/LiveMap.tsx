@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, apiBaseUrl, type Mission } from "@/lib/api/client";
+import { api, apiBaseUrl, type Coordinates, type Mission } from "@/lib/api/client";
 import { connectTelemetry, type TelemetryMessage } from "@/lib/telemetry";
 import { FlightMap, type MissionRoute } from "./FlightMap";
 
@@ -10,10 +10,14 @@ type LiveMapProps = {
   selectedMission?: Mission;
   /** Called with the live drones on every update, so other panels reuse this connection. */
   onDronesChange?: (drones: Record<string, TelemetryMessage>) => void;
+  theme?: "day" | "night";
+  picking?: boolean;
+  origin?: Coordinates;
+  destination?: Coordinates;
 };
 
 /** Live map: drones from the telemetry hub, and the route of each mission being flown. */
-export function LiveMap({ selectedMission, onDronesChange }: LiveMapProps = {}) {
+export function LiveMap({ selectedMission, onDronesChange, theme, picking, origin, destination }: LiveMapProps = {}) {
   const [drones, setDrones] = useState<Record<string, TelemetryMessage>>({});
   const [missions, setMissions] = useState<Record<string, Mission>>({});
   const requestedMissions = useRef(new Set<string>());
@@ -63,5 +67,5 @@ export function LiveMap({ selectedMission, onDronesChange }: LiveMapProps = {}) 
     [selectedMission],
   );
 
-  return <FlightMap drones={droneList} routes={routes} selected={selected} />;
+  return <FlightMap drones={droneList} routes={routes} selected={selected} theme={theme} picking={picking} origin={origin} destination={destination} />;
 }
