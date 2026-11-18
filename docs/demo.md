@@ -10,8 +10,11 @@ Start the system with the Fakes on. `UseFakes=true` is required: the real adapte
 # Option A: Docker (after #40 is merged, docker-compose.yml sets UseFakes=true by default)
 docker compose up --build
 
-# Option B: native
+# Option B: native, in two separate terminals (the API stays in the foreground)
+# Terminal 1: API
 UseFakes=true dotnet run --project backend/src/SkyRoute.Api --launch-profile http
+
+# Terminal 2: frontend
 cd frontend && pnpm install && pnpm dev
 ```
 
